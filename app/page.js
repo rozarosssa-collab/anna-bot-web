@@ -1,65 +1,271 @@
-import Image from "next/image";
+"use client";
+import { useState, useRef, useEffect } from "react";
+
+const MODES = [
+  { id: "ideas", label: "💡 Идеи", prompt: "режим: идеи" },
+  { id: "script", label: "✍️ Скрипт", prompt: "режим: скрипт" },
+  { id: "analyze", label: "🔍 Анализ", prompt: "режим: анализ" },
+  { id: "bend", label: "🌀 Бенд", prompt: "режим: бенд" },
+  { id: "strategy", label: "📊 Стратегия", prompt: "режим: стратегия" },
+  { id: "critic", label: "🔥 Критик", prompt: "режим: критик" },
+  { id: "reddit", label: "👾 Reddit", prompt: "режим: reddit" },
+];
+
+const QUICK_COMMANDS = [
+  { label: "📰 Дайджест", value: "Запусти дайджест конкурентов" },
+  { label: "📈 Трекер", value: "Покажи статистику моих каналов" },
+  { label: "📊 Weekly", value: "Сгенерируй еженедельный отчёт" },
+  { label: "🔮 Прогноз", value: "Сделай прогноз на следующую неделю" },
+  { label: "📋 План", value: "Составь контент-план на неделю" },
+  { label: "🚨 Вирал", value: "Проверь вирусные видео конкурентов" },
+];
 
 export default function Home() {
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      content: "Привет, Влад. Я готов к работе.\n\nВыбери режим слева или напиши напрямую.",
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [activeMode, setActiveMode] = useState(null);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = async (text) => {
+    if (!text.trim() || loading) return;
+
+    const userMessage = { role: "user", content: text };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
+      const data = await res.json();
+      setMessages([...newMessages, { role: "assistant", content: data.content }]);
+    } catch {
+      setMessages([...newMessages, { role: "assistant", content: "❌ Ошибка. Попробуй снова." }]);
+    }
+    setLoading(false);
+  };
+
+  const handleMode = (mode) => {
+    setActiveMode(mode.id);
+    sendMessage(mode.prompt);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input);
+    }
+  };
+
+  const clearChat = () => {
+    setMessages([{ role: "assistant", content: "История очищена. Начинаем заново." }]);
+    setActiveMode(null);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div style={{ display: "flex", height: "100vh", background: "#0a0a0a", color: "#e5e5e5", fontFamily: "system-ui, sans-serif" }}>
+      
+      {/* SIDEBAR */}
+      <div style={{ width: "240px", background: "#111", borderRight: "1px solid #222", display: "flex", flexDirection: "column", padding: "16px", gap: "8px" }}>
+        
+        <div style={{ fontSize: "18px", fontWeight: "700", color: "#fff", marginBottom: "8px", paddingBottom: "12px", borderBottom: "1px solid #222" }}>
+          🤖 Anna Bot
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        <div style={{ fontSize: "11px", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>
+          Режимы
+        </div>
+
+        {MODES.map((mode) => (
+          <button
+            key={mode.id}
+            onClick={() => handleMode(mode)}
+            style={{
+              background: activeMode === mode.id ? "#1a1a2e" : "transparent",
+              border: activeMode === mode.id ? "1px solid #4f46e5" : "1px solid transparent",
+              color: activeMode === mode.id ? "#818cf8" : "#999",
+              padding: "8px 12px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              textAlign: "left",
+              fontSize: "13px",
+              transition: "all 0.15s",
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            {mode.label}
+          </button>
+        ))}
+
+        <div style={{ fontSize: "11px", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginTop: "12px", marginBottom: "4px" }}>
+          Быстрые команды
+        </div>
+
+        {QUICK_COMMANDS.map((cmd) => (
+          <button
+            key={cmd.label}
+            onClick={() => sendMessage(cmd.value)}
+            style={{
+              background: "transparent",
+              border: "1px solid transparent",
+              color: "#666",
+              padding: "6px 12px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              textAlign: "left",
+              fontSize: "12px",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { e.target.style.color = "#999"; e.target.style.borderColor = "#333"; }}
+            onMouseLeave={(e) => { e.target.style.color = "#666"; e.target.style.borderColor = "transparent"; }}
+          >
+            {cmd.label}
+          </button>
+        ))}
+
+        <div style={{ flex: 1 }} />
+
+        <button
+          onClick={clearChat}
+          style={{
+            background: "transparent",
+            border: "1px solid #333",
+            color: "#555",
+            padding: "8px 12px",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontSize: "12px",
+          }}
+        >
+          🧹 Очистить чат
+        </button>
+      </div>
+
+      {/* CHAT */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+          {messages.map((msg, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+                gap: "12px",
+                alignItems: "flex-start",
+              }}
+            >
+              {msg.role === "assistant" && (
+                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#1a1a2e", border: "1px solid #4f46e5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>
+                  🤖
+                </div>
+              )}
+              <div
+                style={{
+                  maxWidth: "70%",
+                  padding: "12px 16px",
+                  borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                  background: msg.role === "user" ? "#1a1a2e" : "#161616",
+                  border: msg.role === "user" ? "1px solid #4f46e5" : "1px solid #222",
+                  color: "#e5e5e5",
+                  fontSize: "14px",
+                  lineHeight: "1.6",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {msg.content}
+              </div>
+              {msg.role === "user" && (
+                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#1a1a2e", border: "1px solid #4f46e5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>
+                  👤
+                </div>
+              )}
+            </div>
+          ))}
+
+          {loading && (
+            <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+              <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#1a1a2e", border: "1px solid #4f46e5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>
+                🤖
+              </div>
+              <div style={{ padding: "12px 16px", borderRadius: "16px 16px 16px 4px", background: "#161616", border: "1px solid #222", color: "#666", fontSize: "14px" }}>
+                ⏳ Думаю...
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div style={{ padding: "16px 24px", borderTop: "1px solid #222", background: "#0d0d0d" }}>
+          <div style={{ display: "flex", gap: "12px", alignItems: "flex-end" }}>
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Напиши сообщение... (Enter — отправить, Shift+Enter — новая строка)"
+              rows={1}
+              style={{
+                flex: 1,
+                background: "#161616",
+                border: "1px solid #333",
+                borderRadius: "12px",
+                padding: "12px 16px",
+                color: "#e5e5e5",
+                fontSize: "14px",
+                resize: "none",
+                outline: "none",
+                fontFamily: "inherit",
+                lineHeight: "1.5",
+                maxHeight: "120px",
+                overflow: "auto",
+              }}
+              onInput={(e) => {
+                e.target.style.height = "auto";
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+              }}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <button
+              onClick={() => sendMessage(input)}
+              disabled={loading || !input.trim()}
+              style={{
+                background: loading || !input.trim() ? "#1a1a1a" : "#4f46e5",
+                border: "none",
+                borderRadius: "12px",
+                padding: "12px 20px",
+                color: loading || !input.trim() ? "#444" : "#fff",
+                cursor: loading || !input.trim() ? "not-allowed" : "pointer",
+                fontSize: "14px",
+                fontWeight: "600",
+                transition: "all 0.15s",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Отправить →
+            </button>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
