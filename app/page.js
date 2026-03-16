@@ -20,13 +20,26 @@ const QUICK_COMMANDS = [
   { label: "🚨 Вирал", value: "Проверь вирусные видео конкурентов" },
 ];
 
+const INITIAL_MESSAGE = {
+  role: "assistant",
+  content: "Привет, Влад. Я готова к работе.\n\nВыбери режим слева или напиши напрямую.",
+};
+
 export default function Home() {
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content: "Привет, Влад. Я готов к работе.\n\nВыбери режим слева или напиши напрямую.",
-    },
-  ]);
+  const [messages, setMessages] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("anna_chat_history");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return [INITIAL_MESSAGE];
+        }
+      }
+    }
+    return [INITIAL_MESSAGE];
+  });
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeMode, setActiveMode] = useState(null);
@@ -36,12 +49,19 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const saveHistory = (msgs) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("anna_chat_history", JSON.stringify(msgs));
+    }
+  };
+
   const sendMessage = async (text) => {
     if (!text.trim() || loading) return;
 
     const userMessage = { role: "user", content: text };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
+    saveHistory(newMessages);
     setInput("");
     setLoading(true);
 
@@ -57,9 +77,13 @@ export default function Home() {
         }),
       });
       const data = await res.json();
-      setMessages([...newMessages, { role: "assistant", content: data.content }]);
+      const updated = [...newMessages, { role: "assistant", content: data.content }];
+      setMessages(updated);
+      saveHistory(updated);
     } catch {
-      setMessages([...newMessages, { role: "assistant", content: "❌ Ошибка. Попробуй снова." }]);
+      const updated = [...newMessages, { role: "assistant", content: "❌ Ошибка. Попробуй снова." }];
+      setMessages(updated);
+      saveHistory(updated);
     }
     setLoading(false);
   };
@@ -77,16 +101,18 @@ export default function Home() {
   };
 
   const clearChat = () => {
-    setMessages([{ role: "assistant", content: "История очищена. Начинаем заново." }]);
+    const initial = [{ role: "assistant", content: "История очищена. Начинаем заново." }];
+    setMessages(initial);
+    saveHistory(initial);
     setActiveMode(null);
   };
 
   return (
     <div style={{ display: "flex", height: "100vh", background: "#0a0a0a", color: "#e5e5e5", fontFamily: "system-ui, sans-serif" }}>
-      
+
       {/* SIDEBAR */}
       <div style={{ width: "240px", background: "#111", borderRight: "1px solid #222", display: "flex", flexDirection: "column", padding: "16px", gap: "8px" }}>
-        
+
         <div style={{ fontSize: "18px", fontWeight: "700", color: "#fff", marginBottom: "8px", paddingBottom: "12px", borderBottom: "1px solid #222" }}>
           🤖 Anna Bot
         </div>
@@ -161,7 +187,7 @@ export default function Home() {
 
       {/* CHAT */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        
+
         {/* Messages */}
         <div style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
           {messages.map((msg, i) => (
