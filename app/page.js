@@ -57,23 +57,18 @@ export default function Home() {
 
   const sendMessage = async (text) => {
     if (!text.trim() || loading) return;
-
     const userMessage = { role: "user", content: text };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     saveHistory(newMessages);
     setInput("");
     setLoading(true);
-
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: newMessages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
+          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
       const data = await res.json();
@@ -107,14 +102,23 @@ export default function Home() {
     setActiveMode(null);
   };
 
+  const AvatarBot = () => (
+    <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", border: "1px solid #4f46e5", flexShrink: 0 }}>
+      <img src="/anna-avatar.jpg" alt="Anna" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+    </div>
+  );
+
   return (
     <div style={{ display: "flex", height: "100vh", background: "#0a0a0a", color: "#e5e5e5", fontFamily: "system-ui, sans-serif" }}>
 
       {/* SIDEBAR */}
       <div style={{ width: "240px", background: "#111", borderRight: "1px solid #222", display: "flex", flexDirection: "column", padding: "16px", gap: "8px" }}>
 
-        <div style={{ fontSize: "18px", fontWeight: "700", color: "#fff", marginBottom: "8px", paddingBottom: "12px", borderBottom: "1px solid #222" }}>
-          🤖 Anna Bot
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", paddingBottom: "12px", borderBottom: "1px solid #222" }}>
+          <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", border: "1px solid #4f46e5", flexShrink: 0 }}>
+            <img src="/anna-avatar.jpg" alt="Anna" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </div>
+          <span style={{ fontSize: "16px", fontWeight: "700", color: "#fff" }}>Anna Bot</span>
         </div>
 
         <div style={{ fontSize: "11px", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>
@@ -188,7 +192,6 @@ export default function Home() {
       {/* CHAT */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
 
-        {/* Messages */}
         <div style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
           {messages.map((msg, i) => (
             <div
@@ -200,11 +203,7 @@ export default function Home() {
                 alignItems: "flex-start",
               }}
             >
-              {msg.role === "assistant" && (
-                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#1a1a2e", border: "1px solid #4f46e5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>
-                  🤖
-                </div>
-              )}
+              {msg.role === "assistant" && <AvatarBot />}
               <div
                 style={{
                   maxWidth: "70%",
@@ -231,9 +230,7 @@ export default function Home() {
 
           {loading && (
             <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-              <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#1a1a2e", border: "1px solid #4f46e5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>
-                🤖
-              </div>
+              <AvatarBot />
               <div style={{ padding: "12px 16px", borderRadius: "16px 16px 16px 4px", background: "#161616", border: "1px solid #222", color: "#666", fontSize: "14px" }}>
                 ⏳ Думаю...
               </div>
@@ -242,7 +239,6 @@ export default function Home() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input */}
         <div style={{ padding: "16px 24px", borderTop: "1px solid #222", background: "#0d0d0d" }}>
           <div style={{ display: "flex", gap: "12px", alignItems: "flex-end" }}>
             <textarea
