@@ -37,6 +37,12 @@ function saveTheme(t) {
   localStorage.setItem("anna_theme", t);
 }
 
+function loadSidebarOpen() {
+  if (typeof window === "undefined") return true;
+  const v = localStorage.getItem("anna_sidebar");
+  return v === null ? true : v === "true";
+}
+
 const THEMES = {
   dark: {
     bg: "#0a0a0a", sidebar: "#111", sidebarBorder: "#222",
@@ -86,10 +92,14 @@ export default function Home() {
   const [stats, setStats] = useState(null);
   const [calDayData, setCalDayData] = useState({});
   const [refreshing, setRefreshing] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef(null);
   const menuRef = useRef(null);
 
-  useEffect(() => { setTheme(loadTheme()); }, []);
+  useEffect(() => {
+    setTheme(loadTheme());
+    setSidebarOpen(loadSidebarOpen());
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -109,6 +119,12 @@ export default function Home() {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
     saveTheme(next);
+  };
+
+  const toggleSidebar = () => {
+    const next = !sidebarOpen;
+    setSidebarOpen(next);
+    if (typeof window !== "undefined") localStorage.setItem("anna_sidebar", String(next));
   };
 
   const saveHistory = (msgs) => {
@@ -300,47 +316,68 @@ export default function Home() {
         </div>
       )}
 
-      <div style={{ width: "240px", background: c.sidebar, borderRight: "1px solid " + c.sidebarBorder, display: "flex", flexDirection: "column", padding: "16px", gap: "8px" }}>
-        <div style={{ position: "relative", marginBottom: "8px", paddingBottom: "12px", borderBottom: "1px solid " + c.sidebarBorder }} ref={menuRef}>
-          <div onClick={() => setShowMenu(!showMenu)} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
-            <div style={{ width: "36px", height: "36px", borderRadius: "10px", overflow: "hidden", border: "1px solid " + c.accent, flexShrink: 0 }}>
-              <img src="/anna-avatar.jpg" alt="Anna" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      {/* SIDEBAR */}
+      {sidebarOpen && (
+        <div style={{ width: "240px", background: c.sidebar, borderRight: "1px solid " + c.sidebarBorder, display: "flex", flexDirection: "column", height: "100vh", flexShrink: 0 }}>
+
+          {/* HEADER — фиксированный */}
+          <div style={{ padding: "16px", borderBottom: "1px solid " + c.sidebarBorder, flexShrink: 0 }}>
+            <div style={{ position: "relative" }} ref={menuRef}>
+              <div onClick={() => setShowMenu(!showMenu)} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+                <div style={{ width: "36px", height: "36px", borderRadius: "10px", overflow: "hidden", border: "1px solid " + c.accent, flexShrink: 0 }}>
+                  <img src="/anna-avatar.jpg" alt="Anna" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "15px", fontWeight: "700", color: c.text }}>Anna Bot</div>
+                  <div style={{ fontSize: "11px", color: c.textDim }}>{stats ? "$" + totalCost.toFixed(3) + " этот месяц" : "..."}</div>
+                </div>
+                <div style={{ color: c.textDim, fontSize: "12px" }}>{showMenu ? "▲" : "▼"}</div>
+              </div>
+              {showMenu && (
+                <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: c.dropdownBg, border: "1px solid " + c.dropdownBorder, borderRadius: "10px", overflow: "hidden", zIndex: 100 }}>
+                  <button onClick={() => { fetchStats(); setShowStats(true); setShowMenu(false); }} style={{ width: "100%", background: "transparent", border: "none", padding: "10px 14px", color: c.text, fontSize: "13px", textAlign: "left", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.background = c.hoverBg} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    📊 Статистика расходов
+                  </button>
+                  <button onClick={() => { setShowSettings(true); setShowMenu(false); }} style={{ width: "100%", background: "transparent", border: "none", padding: "10px 14px", color: c.text, fontSize: "13px", textAlign: "left", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.background = c.hoverBg} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    ⚙️ Настройки
+                  </button>
+                </div>
+              )}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: "15px", fontWeight: "700", color: c.text }}>Anna Bot</div>
-              <div style={{ fontSize: "11px", color: c.textDim }}>{stats ? "$" + totalCost.toFixed(3) + " этот месяц" : "..."}</div>
-            </div>
-            <div style={{ color: c.textDim, fontSize: "12px" }}>{showMenu ? "▲" : "▼"}</div>
           </div>
-          {showMenu && (
-            <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: c.dropdownBg, border: "1px solid " + c.dropdownBorder, borderRadius: "10px", overflow: "hidden", zIndex: 100 }}>
-              <button onClick={() => { fetchStats(); setShowStats(true); setShowMenu(false); }} style={{ width: "100%", background: "transparent", border: "none", padding: "10px 14px", color: c.text, fontSize: "13px", textAlign: "left", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.background = c.hoverBg} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                📊 Статистика расходов
+
+          {/* SCROLLABLE CONTENT */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ fontSize: "11px", color: c.textDim, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", marginTop: "4px" }}>Режимы</div>
+            {MODES.map(mode => (
+              <button key={mode.id} onClick={() => handleMode(mode)} style={{ background: activeMode === mode.id ? c.highlightBg : "transparent", border: activeMode === mode.id ? "1px solid " + c.accent : "1px solid transparent", color: activeMode === mode.id ? c.accentText : c.textMuted, padding: "8px 12px", borderRadius: "8px", cursor: "pointer", textAlign: "left", fontSize: "13px", transition: "all 0.15s", flexShrink: 0 }}>
+                {mode.label}
               </button>
-              <button onClick={() => { setShowSettings(true); setShowMenu(false); }} style={{ width: "100%", background: "transparent", border: "none", padding: "10px 14px", color: c.text, fontSize: "13px", textAlign: "left", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.background = c.hoverBg} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                ⚙️ Настройки
+            ))}
+
+            <div style={{ fontSize: "11px", color: c.textDim, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px", marginTop: "12px" }}>Быстрые команды</div>
+            {QUICK_COMMANDS.map(cmd => (
+              <button key={cmd.label} onClick={() => sendMessage(cmd.value)} style={{ background: "transparent", border: "1px solid transparent", color: theme === "dark" ? "#666" : "#aaa", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", textAlign: "left", fontSize: "12px", transition: "all 0.15s", flexShrink: 0 }} onMouseEnter={e => { e.target.style.color = c.textMuted; e.target.style.borderColor = c.sidebarBorder; }} onMouseLeave={e => { e.target.style.color = theme === "dark" ? "#666" : "#aaa"; e.target.style.borderColor = "transparent"; }}>
+                {cmd.label}
               </button>
-            </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* CHAT */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+
+        {/* TOP BAR с кнопкой сайдбара */}
+        <div style={{ padding: "8px 16px", borderBottom: "1px solid " + c.sidebarBorder, background: c.sidebar, display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+          <button onClick={toggleSidebar} style={{ background: "transparent", border: "none", color: c.textDim, cursor: "pointer", fontSize: "18px", padding: "4px 8px", borderRadius: "6px", lineHeight: 1 }} title={sidebarOpen ? "Скрыть меню" : "Показать меню"}>
+            {sidebarOpen ? "◀" : "☰"}
+          </button>
+          {!sidebarOpen && (
+            <div style={{ fontSize: "14px", fontWeight: "600", color: c.text }}>Anna Bot</div>
           )}
         </div>
 
-        <div style={{ fontSize: "11px", color: c.textDim, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Режимы</div>
-        {MODES.map(mode => (
-          <button key={mode.id} onClick={() => handleMode(mode)} style={{ background: activeMode === mode.id ? c.highlightBg : "transparent", border: activeMode === mode.id ? "1px solid " + c.accent : "1px solid transparent", color: activeMode === mode.id ? c.accentText : c.textMuted, padding: "8px 12px", borderRadius: "8px", cursor: "pointer", textAlign: "left", fontSize: "13px", transition: "all 0.15s" }}>
-            {mode.label}
-          </button>
-        ))}
-
-        <div style={{ fontSize: "11px", color: c.textDim, textTransform: "uppercase", letterSpacing: "1px", marginTop: "12px", marginBottom: "4px" }}>Быстрые команды</div>
-        {QUICK_COMMANDS.map(cmd => (
-          <button key={cmd.label} onClick={() => sendMessage(cmd.value)} style={{ background: "transparent", border: "1px solid transparent", color: theme === "dark" ? "#666" : "#aaa", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", textAlign: "left", fontSize: "12px", transition: "all 0.15s" }} onMouseEnter={e => { e.target.style.color = c.textMuted; e.target.style.borderColor = c.sidebarBorder; }} onMouseLeave={e => { e.target.style.color = theme === "dark" ? "#666" : "#aaa"; e.target.style.borderColor = "transparent"; }}>
-            {cmd.label}
-          </button>
-        ))}
-        <div style={{ flex: 1 }} />
-      </div>
-
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <div style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
           {messages.map((msg, i) => (
             <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", gap: "12px", alignItems: "flex-start" }}>
@@ -368,7 +405,7 @@ export default function Home() {
           <div ref={messagesEndRef} />
         </div>
 
-        <div style={{ padding: "16px 24px", borderTop: "1px solid " + c.sidebarBorder, background: c.inputBarBg }}>
+        <div style={{ padding: "16px 24px", borderTop: "1px solid " + c.sidebarBorder, background: c.inputBarBg, flexShrink: 0 }}>
           <div style={{ display: "flex", gap: "12px", alignItems: "flex-end" }}>
             <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Напиши сообщение... (Enter — отправить, Shift+Enter — новая строка)" rows={1} style={{ flex: 1, background: c.inputBg, border: "1px solid " + c.inputBorder, borderRadius: "12px", padding: "12px 16px", color: c.text, fontSize: "14px", resize: "none", outline: "none", fontFamily: "inherit", lineHeight: "1.5", maxHeight: "120px", overflow: "auto" }} onInput={e => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }} />
             <button onClick={() => sendMessage(input)} disabled={loading || !input.trim()} style={{ background: loading || !input.trim() ? c.btnDisabledBg : c.accent, border: "none", borderRadius: "12px", padding: "12px 20px", color: loading || !input.trim() ? c.btnDisabledText : "#fff", cursor: loading || !input.trim() ? "not-allowed" : "pointer", fontSize: "14px", fontWeight: "600", transition: "all 0.15s", whiteSpace: "nowrap" }}>
