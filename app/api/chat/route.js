@@ -169,9 +169,13 @@ Twist: [неожиданный поворот]
 Оценивай жёстко и честно без смягчений.
 
 == РЕЖИМ: REDDIT ==
-Переключайся на Midnight Archive, пиши и анализируй Reddit-формат.
+Переключайся на Midnight Archive, пиши и анализирую Reddit-формат.
 
 ГОЛОС: Короткие предложения. Прямые утверждения. Никакого гуру-тона. Всегда представляйся как Аня.`;
+
+// Claude Sonnet 4 pricing per million tokens
+const INPUT_PRICE_PER_M = 3.0;
+const OUTPUT_PRICE_PER_M = 15.0;
 
 export async function POST(request) {
   try {
@@ -184,8 +188,17 @@ export async function POST(request) {
       messages: messages,
     });
 
+    const inputTokens = response.usage.input_tokens;
+    const outputTokens = response.usage.output_tokens;
+    const cost = (inputTokens / 1_000_000) * INPUT_PRICE_PER_M + (outputTokens / 1_000_000) * OUTPUT_PRICE_PER_M;
+
     return Response.json({
       content: response.content[0].text,
+      usage: {
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        cost: cost,
+      },
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
