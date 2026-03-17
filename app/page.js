@@ -152,6 +152,7 @@ export default function Home() {
       const updated = [...newMsgs, { role: "assistant", content: data.content }];
       setMessages(updated);
       saveHistory(updated);
+      fetchStats();
     } catch {
       const updated = [...newMsgs, { role: "assistant", content: "❌ Ошибка. Попробуй снова." }];
       setMessages(updated);
