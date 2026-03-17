@@ -1,6 +1,5 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import LinkItem from "../components/LinkItem";
 
 const MODES = [
   { id: "ideas", label: "💡 Идеи", prompt: "режим: идеи" },
@@ -19,17 +18,6 @@ const QUICK_COMMANDS = [
   { label: "🔮 Прогноз", value: "Сделай прогноз на следующую неделю" },
   { label: "📋 План", value: "Составь контент-план на неделю" },
   { label: "🚨 Вирал", value: "Проверь вирусные видео конкурентов" },
-];
-
-const LINKS = [
-  { label: "🚂 Railway", desc: "Хостинг Telegram бота", url: "https://railway.app" },
-  { label: "▲ Vercel", desc: "Хостинг веб-версии", url: "https://vercel.com" },
-  { label: "🤖 Anthropic", desc: "Claude API + расходы", url: "https://console.anthropic.com" },
-  { label: "🎙 OpenAI", desc: "Whisper голос", url: "https://platform.openai.com" },
-  { label: "📺 YouTube API", desc: "Аналитика каналов", url: "https://console.cloud.google.com" },
-  { label: "🗄 Upstash", desc: "Redis база данных", url: "https://console.upstash.com" },
-  { label: "🐙 GitHub", desc: "Репозитории кода", url: "https://github.com/rozarosssa-collab" },
-  { label: "💬 Telegram Bot", desc: "@Anna_yt_assistant_bot", url: "https://t.me/Anna_yt_assistant_bot" },
 ];
 
 const INITIAL_MESSAGE = {
@@ -92,7 +80,6 @@ export default function Home() {
   const [showStats, setShowStats] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showLinks, setShowLinks] = useState(false);
   const [theme, setTheme] = useState("dark");
   const [stats, setStats] = useState(null);
   const [calDayData, setCalDayData] = useState({});
@@ -291,7 +278,7 @@ export default function Home() {
                   <div style={{ position: "absolute", top: "2px", left: theme === "dark" ? "22px" : "2px", width: "20px", height: "20px", borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
                 </div>
               </div>
-              <button onClick={() => { setShowLinks(true); setShowSettings(false); }} style={{ background: c.modalItemBg, border: "1px solid " + c.modalBorder, borderRadius: "10px", padding: "12px", color: c.text, fontSize: "14px", cursor: "pointer", textAlign: "left" }}>
+              <button onClick={() => { window.open("/links", "_blank"); setShowSettings(false); }} style={{ background: c.modalItemBg, border: "1px solid " + c.modalBorder, borderRadius: "10px", padding: "12px", color: c.text, fontSize: "14px", cursor: "pointer", textAlign: "left" }}>
                 🔗 Ссылки на сервисы
               </button>
               <button onClick={clearAll} style={{ background: "transparent", border: "1px solid #ef4444", borderRadius: "10px", padding: "12px", color: "#ef4444", fontSize: "14px", cursor: "pointer", textAlign: "left" }}>
@@ -299,20 +286,6 @@ export default function Home() {
               </button>
             </div>
             <button onClick={() => setShowSettings(false)} style={closeBtn}>Закрыть</button>
-          </div>
-        </div>
-      )}
-
-      {showLinks && (
-        <div onClick={() => setShowLinks(false)} style={{ ...overlayStyle, zIndex: 300 }}>
-          <div onClick={e => e.stopPropagation()} style={modalStyle}>
-            <div style={modalTitle}>🔗 Сервисы</div>
-            <div>
-              {LINKS.map(link => (
-                <LinkItem key={link.url} link={link} colors={c} />
-              ))}
-            </div>
-            <button onClick={() => setShowLinks(false)} style={closeBtn}>Закрыть</button>
           </div>
         </div>
       )}
