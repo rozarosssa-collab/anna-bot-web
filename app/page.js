@@ -41,9 +41,9 @@ function loadTheme() {
   return localStorage.getItem("anna_theme") || "dark";
 }
 
-function saveTheme(theme) {
+function saveTheme(t) {
   if (typeof window === "undefined") return;
-  localStorage.setItem("anna_theme", theme);
+  localStorage.setItem("anna_theme", t);
 }
 
 const THEMES = {
@@ -57,7 +57,7 @@ const THEMES = {
     modalBg: "#161616", modalBorder: "#333", modalItemBg: "#1a1a1a",
     dropdownBg: "#1a1a1a", dropdownBorder: "#333",
     btnDisabledBg: "#1a1a1a", btnDisabledText: "#444",
-    hoverBg: "#252525",
+    hoverBg: "#252525", highlightBg: "#1a1a2e",
   },
   light: {
     bg: "#f5f5f5", sidebar: "#ffffff", sidebarBorder: "#e0e0e0",
@@ -69,9 +69,36 @@ const THEMES = {
     modalBg: "#ffffff", modalBorder: "#e0e0e0", modalItemBg: "#f5f5f5",
     dropdownBg: "#ffffff", dropdownBorder: "#e0e0e0",
     btnDisabledBg: "#f0f0f0", btnDisabledText: "#bbbbbb",
-    hoverBg: "#f0f0f0",
+    hoverBg: "#f0f0f0", highlightBg: "#ede9fe",
   },
 };
+
+function LinkItem({ link, colors }) {
+  return (
+    
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "12px",
+        background: colors.modalItemBg,
+        border: "1px solid " + colors.modalBorder,
+        borderRadius: "10px",
+        textDecoration: "none",
+        marginBottom: "8px",
+      }}
+    >
+      <div>
+        <div style={{ fontSize: "14px", fontWeight: "600", color: colors.text }}>{link.label}</div>
+        <div style={{ fontSize: "12px", color: colors.textDim }}>{link.desc}</div>
+      </div>
+      <div style={{ color: colors.textDim, fontSize: "14px" }}>↗</div>
+    </a>
+  );
+}
 
 export default function Home() {
   const [messages, setMessages] = useState(() => {
@@ -98,45 +125,21 @@ export default function Home() {
   const messagesEndRef = useRef(null);
   const menuRef = useRef(null);
 
-  useEffect(() => {
-    setTheme(loadTheme());
-  }, []);
+  useEffect(() => { setTheme(loadTheme()); }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => {
-    function handleClickOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setShowMenu(false);
-      }
+    function handleClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const fetchStats = async () => {
-    try {
-      const res = await fetch("/api/stats?type=month");
-      const data = await res.json();
-      setStats(data);
-    } catch {
-      setStats({ web_cost: 0, tg_cost: 0, web_messages: 0, tg_messages: 0, whisper_cost: 0, input_tokens: 0, output_tokens: 0, railway_cost: 0 });
-    }
-  };
-
-  const fetchCalendarDay = async (year, month, day) => {
-    const key = `${year}_${month}_${day}`;
-    if (calDayData[key]) return;
-    try {
-      const res = await fetch(`/api/stats?type=day&year=${year}&month=${month}&day=${day}`);
-      const data = await res.json();
-      setCalDayData(prev => ({ ...prev, [key]: data }));
-    } catch {}
-  };
-
-  const t = THEMES[theme];
+  const c = THEMES[theme];
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -145,49 +148,58 @@ export default function Home() {
   };
 
   const saveHistory = (msgs) => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("anna_chat_history", JSON.stringify(msgs));
+    if (typeof window !== "undefined") localStorage.setItem("anna_chat_history", JSON.stringify(msgs));
+  };
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch("/api/stats?type=month");
+      setStats(await res.json());
+    } catch {
+      setStats({ web_cost: 0, tg_cost: 0, web_messages: 0, tg_messages: 0, whisper_cost: 0, input_tokens: 0, output_tokens: 0, railway_cost: 0 });
     }
+  };
+
+  const fetchCalDay = async (year, month, day) => {
+    const key = year + "_" + month + "_" + day;
+    if (calDayData[key]) return;
+    try {
+      const res = await fetch("/api/stats?type=day&year=" + year + "&month=" + month + "&day=" + day);
+      const data = await res.json();
+      setCalDayData(prev => Object.assign({}, prev, { [key]: data }));
+    } catch {}
   };
 
   const sendMessage = async (text) => {
     if (!text.trim() || loading) return;
-    const userMessage = { role: "user", content: text };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    saveHistory(newMessages);
+    const userMsg = { role: "user", content: text };
+    const newMsgs = [...messages, userMsg];
+    setMessages(newMsgs);
+    saveHistory(newMsgs);
     setInput("");
     setLoading(true);
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-        }),
+        body: JSON.stringify({ messages: newMsgs.map(m => ({ role: m.role, content: m.content })) }),
       });
       const data = await res.json();
-      const updated = [...newMessages, { role: "assistant", content: data.content }];
+      const updated = [...newMsgs, { role: "assistant", content: data.content }];
       setMessages(updated);
       saveHistory(updated);
     } catch {
-      const updated = [...newMessages, { role: "assistant", content: "❌ Ошибка. Попробуй снова." }];
+      const updated = [...newMsgs, { role: "assistant", content: "❌ Ошибка. Попробуй снова." }];
       setMessages(updated);
       saveHistory(updated);
     }
     setLoading(false);
   };
 
-  const handleMode = (mode) => {
-    setActiveMode(mode.id);
-    sendMessage(mode.prompt);
-  };
+  const handleMode = (mode) => { setActiveMode(mode.id); sendMessage(mode.prompt); };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(input);
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
   };
 
   const clearAll = () => {
@@ -201,328 +213,206 @@ export default function Home() {
   const now = new Date();
   const monthName = now.toLocaleString("ru", { month: "long" });
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
-  const calendarDays = [];
-  for (let i = 0; i < (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1); i++) calendarDays.push(null);
-  for (let d = 1; d <= daysInMonth; d++) calendarDays.push(d);
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
+  const calDays = [];
+  for (let i = 0; i < (firstDay === 0 ? 6 : firstDay - 1); i++) calDays.push(null);
+  for (let d = 1; d <= daysInMonth; d++) calDays.push(d);
 
-  const totalCost = stats ? (
-    (stats.web_cost || 0) +
-    (stats.tg_cost || 0) +
-    (stats.whisper_cost || 0) +
-    (stats.railway_cost || 0)
-  ) : 0;
+  const totalCost = stats ? (stats.web_cost || 0) + (stats.tg_cost || 0) + (stats.whisper_cost || 0) + (stats.railway_cost || 0) : 0;
 
-  const modalStyle = {
-    background: t.modalBg, border: `1px solid ${t.modalBorder}`,
-    borderRadius: "16px", padding: "24px", width: "340px",
-    maxHeight: "85vh", overflowY: "auto",
-  };
+  const overlayStyle = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
+  const modalStyle = { background: c.modalBg, border: "1px solid " + c.modalBorder, borderRadius: "16px", padding: "24px", width: "340px", maxHeight: "85vh", overflowY: "auto" };
+  const modalTitle = { fontSize: "16px", fontWeight: "700", color: c.text, marginBottom: "16px" };
+  const closeBtn = { marginTop: "16px", width: "100%", background: c.accent, border: "none", borderRadius: "8px", padding: "10px", color: "#fff", cursor: "pointer", fontSize: "14px" };
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: t.bg, color: t.text, fontFamily: "system-ui, sans-serif" }}>
+    <div style={{ display: "flex", height: "100vh", background: c.bg, color: c.text, fontFamily: "system-ui, sans-serif" }}>
 
-      {/* STATS MODAL */}
       {showStats && (
-        <div onClick={() => { setShowStats(false); setShowCalendar(false); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={modalStyle}>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: t.text, marginBottom: "16px" }}>📊 Статистика — {monthName}</div>
+        <div onClick={() => { setShowStats(false); setShowCalendar(false); }} style={overlayStyle}>
+          <div onClick={e => e.stopPropagation()} style={modalStyle}>
+            <div style={modalTitle}>📊 Статистика — {monthName}</div>
             {!stats ? (
-              <div style={{ color: t.textMuted, textAlign: "center", padding: "20px" }}>⏳ Загружаю...</div>
+              <div style={{ color: c.textMuted, textAlign: "center", padding: "20px" }}>⏳ Загружаю...</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <div style={{ padding: "12px", background: theme === "dark" ? "#1a1a2e" : "#ede9fe", border: `1px solid ${t.accent}`, borderRadius: "10px", textAlign: "center" }}>
-                  <div style={{ fontSize: "11px", color: t.accentText, marginBottom: "4px" }}>ВСЕГО ЗА МЕСЯЦ</div>
-                  <div style={{ fontSize: "24px", fontWeight: "800", color: t.accent }}>${totalCost.toFixed(4)}</div>
+                <div style={{ padding: "12px", background: c.highlightBg, border: "1px solid " + c.accent, borderRadius: "10px", textAlign: "center" }}>
+                  <div style={{ fontSize: "11px", color: c.accentText, marginBottom: "4px" }}>ВСЕГО ЗА МЕСЯЦ</div>
+                  <div style={{ fontSize: "24px", fontWeight: "800", color: c.accent }}>${totalCost.toFixed(4)}</div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                  <div style={{ padding: "10px", background: t.modalItemBg, borderRadius: "8px" }}>
-                    <div style={{ fontSize: "11px", color: t.textDim }}>🌐 Веб (Claude)</div>
-                    <div style={{ fontSize: "14px", fontWeight: "600", color: t.text }}>${(stats.web_cost || 0).toFixed(4)}</div>
-                    <div style={{ fontSize: "11px", color: t.textDim }}>{stats.web_messages || 0} сообщ.</div>
+                  <div style={{ padding: "10px", background: c.modalItemBg, borderRadius: "8px" }}>
+                    <div style={{ fontSize: "11px", color: c.textDim }}>🌐 Веб (Claude)</div>
+                    <div style={{ fontSize: "14px", fontWeight: "600", color: c.text }}>${(stats.web_cost || 0).toFixed(4)}</div>
+                    <div style={{ fontSize: "11px", color: c.textDim }}>{stats.web_messages || 0} сообщ.</div>
                   </div>
-                  <div style={{ padding: "10px", background: t.modalItemBg, borderRadius: "8px" }}>
-                    <div style={{ fontSize: "11px", color: t.textDim }}>💬 Telegram (Claude)</div>
-                    <div style={{ fontSize: "14px", fontWeight: "600", color: t.text }}>${(stats.tg_cost || 0).toFixed(4)}</div>
-                    <div style={{ fontSize: "11px", color: t.textDim }}>{stats.tg_messages || 0} сообщ.</div>
+                  <div style={{ padding: "10px", background: c.modalItemBg, borderRadius: "8px" }}>
+                    <div style={{ fontSize: "11px", color: c.textDim }}>💬 Telegram</div>
+                    <div style={{ fontSize: "14px", fontWeight: "600", color: c.text }}>${(stats.tg_cost || 0).toFixed(4)}</div>
+                    <div style={{ fontSize: "11px", color: c.textDim }}>{stats.tg_messages || 0} сообщ.</div>
                   </div>
-                  <div style={{ padding: "10px", background: t.modalItemBg, borderRadius: "8px" }}>
-                    <div style={{ fontSize: "11px", color: t.textDim }}>🎤 Whisper (голос)</div>
-                    <div style={{ fontSize: "14px", fontWeight: "600", color: t.text }}>${(stats.whisper_cost || 0).toFixed(4)}</div>
+                  <div style={{ padding: "10px", background: c.modalItemBg, borderRadius: "8px" }}>
+                    <div style={{ fontSize: "11px", color: c.textDim }}>🎤 Whisper</div>
+                    <div style={{ fontSize: "14px", fontWeight: "600", color: c.text }}>${(stats.whisper_cost || 0).toFixed(4)}</div>
                   </div>
-                  <div style={{ padding: "10px", background: t.modalItemBg, borderRadius: "8px" }}>
-                    <div style={{ fontSize: "11px", color: t.textDim }}>🚂 Railway (хостинг)</div>
-                    <div style={{ fontSize: "14px", fontWeight: "600", color: t.text }}>${(stats.railway_cost || 0).toFixed(2)}</div>
-                    <div style={{ fontSize: "11px", color: t.textDim }}>из $5.00/мес</div>
+                  <div style={{ padding: "10px", background: c.modalItemBg, borderRadius: "8px" }}>
+                    <div style={{ fontSize: "11px", color: c.textDim }}>🚂 Railway</div>
+                    <div style={{ fontSize: "14px", fontWeight: "600", color: c.text }}>${(stats.railway_cost || 0).toFixed(2)}</div>
+                    <div style={{ fontSize: "11px", color: c.textDim }}>из $5.00/мес</div>
                   </div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", background: t.modalItemBg, borderRadius: "8px", fontSize: "12px" }}>
-                  <span style={{ color: t.textDim }}>📥 Входящих токенов</span>
-                  <span style={{ color: t.text }}>{(stats.input_tokens || 0).toLocaleString()}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", background: c.modalItemBg, borderRadius: "8px", fontSize: "12px" }}>
+                  <span style={{ color: c.textDim }}>📥 Входящих токенов</span>
+                  <span style={{ color: c.text }}>{(stats.input_tokens || 0).toLocaleString()}</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", background: t.modalItemBg, borderRadius: "8px", fontSize: "12px" }}>
-                  <span style={{ color: t.textDim }}>📤 Исходящих токенов</span>
-                  <span style={{ color: t.text }}>{(stats.output_tokens || 0).toLocaleString()}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", background: c.modalItemBg, borderRadius: "8px", fontSize: "12px" }}>
+                  <span style={{ color: c.textDim }}>📤 Исходящих токенов</span>
+                  <span style={{ color: c.text }}>{(stats.output_tokens || 0).toLocaleString()}</span>
                 </div>
-                <button
-                  onClick={() => {
-                    setShowCalendar(!showCalendar);
-                    if (!showCalendar) {
-                      for (let d = 1; d <= now.getDate(); d++) {
-                        fetchCalendarDay(now.getFullYear(), now.getMonth() + 1, d);
-                      }
-                    }
-                  }}
-                  style={{ background: t.modalItemBg, border: `1px solid ${t.modalBorder}`, borderRadius: "8px", padding: "10px 12px", color: t.text, fontSize: "13px", cursor: "pointer", textAlign: "left" }}
-                >
+                <button onClick={() => { setShowCalendar(!showCalendar); if (!showCalendar) { for (let d = 1; d <= now.getDate(); d++) fetchCalDay(now.getFullYear(), now.getMonth() + 1, d); } }} style={{ background: c.modalItemBg, border: "1px solid " + c.modalBorder, borderRadius: "8px", padding: "10px 12px", color: c.text, fontSize: "13px", cursor: "pointer", textAlign: "left" }}>
                   📅 {showCalendar ? "Скрыть календарь" : "История по дням"}
                 </button>
                 {showCalendar && (
-                  <div style={{ background: t.modalItemBg, borderRadius: "10px", padding: "12px" }}>
-                    <div style={{ fontSize: "12px", color: t.textMuted, marginBottom: "8px", textAlign: "center", fontWeight: "600" }}>
-                      {now.toLocaleString("ru", { month: "long", year: "numeric" })}
-                    </div>
+                  <div style={{ background: c.modalItemBg, borderRadius: "10px", padding: "12px" }}>
+                    <div style={{ fontSize: "12px", color: c.textMuted, marginBottom: "8px", textAlign: "center", fontWeight: "600" }}>{now.toLocaleString("ru", { month: "long", year: "numeric" })}</div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px", marginBottom: "6px" }}>
-                      {["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].map(d => (
-                        <div key={d} style={{ textAlign: "center", fontSize: "10px", color: t.textDim, padding: "2px" }}>{d}</div>
-                      ))}
+                      {["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].map(d => <div key={d} style={{ textAlign: "center", fontSize: "10px", color: c.textDim, padding: "2px" }}>{d}</div>)}
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "3px" }}>
-                      {calendarDays.map((day, i) => {
-                        if (!day) return <div key={`e-${i}`} />;
-                        const key = `${now.getFullYear()}_${now.getMonth() + 1}_${day}`;
-                        const dayData = calDayData[key];
+                      {calDays.map((day, i) => {
+                        if (!day) return <div key={"e" + i} />;
+                        const key = now.getFullYear() + "_" + (now.getMonth() + 1) + "_" + day;
+                        const dd = calDayData[key];
                         const isToday = day === now.getDate();
-                        const dayCost = dayData ? ((dayData.web_cost || 0) + (dayData.tg_cost || 0)) : 0;
-                        const hasActivity = dayCost > 0;
+                        const cost = dd ? ((dd.web_cost || 0) + (dd.tg_cost || 0)) : 0;
+                        const active = cost > 0;
                         return (
-                          <div
-                            key={day}
-                            title={hasActivity ? `${dayData.messages || 0} сообщ. | $${dayCost.toFixed(4)}` : ""}
-                            style={{
-                              textAlign: "center", padding: "4px 2px", borderRadius: "6px", fontSize: "11px",
-                              background: isToday ? t.accent : hasActivity ? (theme === "dark" ? "#1a1a2e" : "#ede9fe") : "transparent",
-                              color: isToday ? "#fff" : hasActivity ? t.accentText : t.textDim,
-                              border: isToday ? `1px solid ${t.accent}` : hasActivity ? `1px solid ${t.accent}` : "1px solid transparent",
-                            }}
-                          >
+                          <div key={day} title={active ? (dd.messages || 0) + " сообщ. | $" + cost.toFixed(4) : ""} style={{ textAlign: "center", padding: "4px 2px", borderRadius: "6px", fontSize: "11px", background: isToday ? c.accent : active ? c.highlightBg : "transparent", color: isToday ? "#fff" : active ? c.accentText : c.textDim, border: isToday ? "1px solid " + c.accent : active ? "1px solid " + c.accent : "1px solid transparent" }}>
                             {day}
-                            {hasActivity && <div style={{ fontSize: "9px" }}>${dayCost.toFixed(2)}</div>}
+                            {active && <div style={{ fontSize: "9px" }}>${cost.toFixed(2)}</div>}
                           </div>
                         );
                       })}
                     </div>
                   </div>
                 )}
-                <div style={{ padding: "8px 10px", background: theme === "dark" ? "#1a1a2e" : "#ede9fe", border: `1px solid ${t.accent}`, borderRadius: "8px", fontSize: "11px", color: t.accentText, textAlign: "center" }}>
+                <div style={{ padding: "8px 10px", background: c.highlightBg, border: "1px solid " + c.accent, borderRadius: "8px", fontSize: "11px", color: c.accentText, textAlign: "center" }}>
                   Данные со всех источников. Сбрасывается 1-го числа.
                 </div>
               </div>
             )}
-            <button onClick={() => { setShowStats(false); setShowCalendar(false); }} style={{ marginTop: "16px", width: "100%", background: t.accent, border: "none", borderRadius: "8px", padding: "10px", color: "#fff", cursor: "pointer", fontSize: "14px" }}>
-              Закрыть
-            </button>
+            <button onClick={() => { setShowStats(false); setShowCalendar(false); }} style={closeBtn}>Закрыть</button>
           </div>
         </div>
       )}
 
-      {/* SETTINGS MODAL */}
       {showSettings && (
-        <div onClick={() => setShowSettings(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={modalStyle}>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: t.text, marginBottom: "16px" }}>⚙️ Настройки</div>
+        <div onClick={() => setShowSettings(false)} style={overlayStyle}>
+          <div onClick={e => e.stopPropagation()} style={modalStyle}>
+            <div style={modalTitle}>⚙️ Настройки</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: t.modalItemBg, borderRadius: "10px" }}>
-                <span style={{ color: t.text, fontSize: "14px" }}>{theme === "dark" ? "🌙 Тёмная тема" : "☀️ Светлая тема"}</span>
-                <div onClick={toggleTheme} style={{ width: "44px", height: "24px", borderRadius: "12px", background: theme === "dark" ? t.accent : "#d1d5db", position: "relative", cursor: "pointer", transition: "background 0.2s" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: c.modalItemBg, borderRadius: "10px" }}>
+                <span style={{ color: c.text, fontSize: "14px" }}>{theme === "dark" ? "🌙 Тёмная тема" : "☀️ Светлая тема"}</span>
+                <div onClick={toggleTheme} style={{ width: "44px", height: "24px", borderRadius: "12px", background: theme === "dark" ? c.accent : "#d1d5db", position: "relative", cursor: "pointer", transition: "background 0.2s" }}>
                   <div style={{ position: "absolute", top: "2px", left: theme === "dark" ? "22px" : "2px", width: "20px", height: "20px", borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
                 </div>
               </div>
-              <button
-                onClick={() => { setShowLinks(true); setShowSettings(false); }}
-                style={{ background: t.modalItemBg, border: `1px solid ${t.modalBorder}`, borderRadius: "10px", padding: "12px", color: t.text, fontSize: "14px", cursor: "pointer", textAlign: "left" }}
-              >
+              <button onClick={() => { setShowLinks(true); setShowSettings(false); }} style={{ background: c.modalItemBg, border: "1px solid " + c.modalBorder, borderRadius: "10px", padding: "12px", color: c.text, fontSize: "14px", cursor: "pointer", textAlign: "left" }}>
                 🔗 Ссылки на сервисы
               </button>
-              <button
-                onClick={clearAll}
-                style={{ background: "transparent", border: "1px solid #ef4444", borderRadius: "10px", padding: "12px", color: "#ef4444", fontSize: "14px", cursor: "pointer", textAlign: "left" }}
-              >
+              <button onClick={clearAll} style={{ background: "transparent", border: "1px solid #ef4444", borderRadius: "10px", padding: "12px", color: "#ef4444", fontSize: "14px", cursor: "pointer", textAlign: "left" }}>
                 🗑️ Очистить всё (чат + статистика)
               </button>
             </div>
-            <button onClick={() => setShowSettings(false)} style={{ marginTop: "16px", width: "100%", background: t.accent, border: "none", borderRadius: "8px", padding: "10px", color: "#fff", cursor: "pointer", fontSize: "14px" }}>
-              Закрыть
-            </button>
+            <button onClick={() => setShowSettings(false)} style={closeBtn}>Закрыть</button>
           </div>
         </div>
       )}
 
-      {/* LINKS MODAL */}
       {showLinks && (
-        <div onClick={() => setShowLinks(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={modalStyle}>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: t.text, marginBottom: "16px" }}>🔗 Сервисы</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {LINKS.map((link) => (
-                
-                  key={link.url}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: t.modalItemBg, border: `1px solid ${t.modalBorder}`, borderRadius: "10px", textDecoration: "none" }}
-                >
-                  <div>
-                    <div style={{ fontSize: "14px", fontWeight: "600", color: t.text }}>{link.label}</div>
-                    <div style={{ fontSize: "12px", color: t.textDim }}>{link.desc}</div>
-                  </div>
-                  <div style={{ color: t.textDim, fontSize: "14px" }}>↗</div>
-                </a>
-              ))}
+        <div onClick={() => setShowLinks(false)} style={{ ...overlayStyle, zIndex: 300 }}>
+          <div onClick={e => e.stopPropagation()} style={modalStyle}>
+            <div style={modalTitle}>🔗 Сервисы</div>
+            <div>
+              {LINKS.map(link => <LinkItem key={link.url} link={link} colors={c} />)}
             </div>
-            <button onClick={() => setShowLinks(false)} style={{ marginTop: "16px", width: "100%", background: t.accent, border: "none", borderRadius: "8px", padding: "10px", color: "#fff", cursor: "pointer", fontSize: "14px" }}>
-              Закрыть
-            </button>
+            <button onClick={() => setShowLinks(false)} style={closeBtn}>Закрыть</button>
           </div>
         </div>
       )}
 
-      {/* SIDEBAR */}
-      <div style={{ width: "240px", background: t.sidebar, borderRight: `1px solid ${t.sidebarBorder}`, display: "flex", flexDirection: "column", padding: "16px", gap: "8px" }}>
-        <div style={{ position: "relative", marginBottom: "8px", paddingBottom: "12px", borderBottom: `1px solid ${t.sidebarBorder}` }} ref={menuRef}>
+      <div style={{ width: "240px", background: c.sidebar, borderRight: "1px solid " + c.sidebarBorder, display: "flex", flexDirection: "column", padding: "16px", gap: "8px" }}>
+        <div style={{ position: "relative", marginBottom: "8px", paddingBottom: "12px", borderBottom: "1px solid " + c.sidebarBorder }} ref={menuRef}>
           <div onClick={() => setShowMenu(!showMenu)} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
-            <div style={{ width: "36px", height: "36px", borderRadius: "10px", overflow: "hidden", border: `1px solid ${t.accent}`, flexShrink: 0 }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "10px", overflow: "hidden", border: "1px solid " + c.accent, flexShrink: 0 }}>
               <img src="/anna-avatar.jpg" alt="Anna" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: "15px", fontWeight: "700", color: t.text }}>Anna Bot</div>
-              <div style={{ fontSize: "11px", color: t.textDim }}>{stats ? `$${totalCost.toFixed(3)} этот месяц` : "..."}</div>
+              <div style={{ fontSize: "15px", fontWeight: "700", color: c.text }}>Anna Bot</div>
+              <div style={{ fontSize: "11px", color: c.textDim }}>{stats ? "$" + totalCost.toFixed(3) + " этот месяц" : "..."}</div>
             </div>
-            <div style={{ color: t.textDim, fontSize: "12px" }}>{showMenu ? "▲" : "▼"}</div>
+            <div style={{ color: c.textDim, fontSize: "12px" }}>{showMenu ? "▲" : "▼"}</div>
           </div>
           {showMenu && (
-            <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: t.dropdownBg, border: `1px solid ${t.dropdownBorder}`, borderRadius: "10px", overflow: "hidden", zIndex: 100 }}>
-              <button
-                onClick={() => { fetchStats(); setShowStats(true); setShowMenu(false); }}
-                style={{ width: "100%", background: "transparent", border: "none", padding: "10px 14px", color: t.text, fontSize: "13px", textAlign: "left", cursor: "pointer" }}
-                onMouseEnter={(e) => e.currentTarget.style.background = t.hoverBg}
-                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-              >
+            <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: c.dropdownBg, border: "1px solid " + c.dropdownBorder, borderRadius: "10px", overflow: "hidden", zIndex: 100 }}>
+              <button onClick={() => { fetchStats(); setShowStats(true); setShowMenu(false); }} style={{ width: "100%", background: "transparent", border: "none", padding: "10px 14px", color: c.text, fontSize: "13px", textAlign: "left", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.background = c.hoverBg} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 📊 Статистика расходов
               </button>
-              <button
-                onClick={() => { setShowSettings(true); setShowMenu(false); }}
-                style={{ width: "100%", background: "transparent", border: "none", padding: "10px 14px", color: t.text, fontSize: "13px", textAlign: "left", cursor: "pointer" }}
-                onMouseEnter={(e) => e.currentTarget.style.background = t.hoverBg}
-                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-              >
+              <button onClick={() => { setShowSettings(true); setShowMenu(false); }} style={{ width: "100%", background: "transparent", border: "none", padding: "10px 14px", color: c.text, fontSize: "13px", textAlign: "left", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.background = c.hoverBg} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 ⚙️ Настройки
               </button>
             </div>
           )}
         </div>
 
-        <div style={{ fontSize: "11px", color: t.textDim, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Режимы</div>
-        {MODES.map((mode) => (
-          <button
-            key={mode.id}
-            onClick={() => handleMode(mode)}
-            style={{
-              background: activeMode === mode.id ? (theme === "dark" ? "#1a1a2e" : "#ede9fe") : "transparent",
-              border: activeMode === mode.id ? `1px solid ${t.accent}` : "1px solid transparent",
-              color: activeMode === mode.id ? t.accentText : t.textMuted,
-              padding: "8px 12px", borderRadius: "8px", cursor: "pointer",
-              textAlign: "left", fontSize: "13px", transition: "all 0.15s",
-            }}
-          >
+        <div style={{ fontSize: "11px", color: c.textDim, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Режимы</div>
+        {MODES.map(mode => (
+          <button key={mode.id} onClick={() => handleMode(mode)} style={{ background: activeMode === mode.id ? c.highlightBg : "transparent", border: activeMode === mode.id ? "1px solid " + c.accent : "1px solid transparent", color: activeMode === mode.id ? c.accentText : c.textMuted, padding: "8px 12px", borderRadius: "8px", cursor: "pointer", textAlign: "left", fontSize: "13px", transition: "all 0.15s" }}>
             {mode.label}
           </button>
         ))}
 
-        <div style={{ fontSize: "11px", color: t.textDim, textTransform: "uppercase", letterSpacing: "1px", marginTop: "12px", marginBottom: "4px" }}>Быстрые команды</div>
-        {QUICK_COMMANDS.map((cmd) => (
-          <button
-            key={cmd.label}
-            onClick={() => sendMessage(cmd.value)}
-            style={{ background: "transparent", border: "1px solid transparent", color: theme === "dark" ? "#666" : "#aaa", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", textAlign: "left", fontSize: "12px", transition: "all 0.15s" }}
-            onMouseEnter={(e) => { e.target.style.color = t.textMuted; e.target.style.borderColor = t.sidebarBorder; }}
-            onMouseLeave={(e) => { e.target.style.color = theme === "dark" ? "#666" : "#aaa"; e.target.style.borderColor = "transparent"; }}
-          >
+        <div style={{ fontSize: "11px", color: c.textDim, textTransform: "uppercase", letterSpacing: "1px", marginTop: "12px", marginBottom: "4px" }}>Быстрые команды</div>
+        {QUICK_COMMANDS.map(cmd => (
+          <button key={cmd.label} onClick={() => sendMessage(cmd.value)} style={{ background: "transparent", border: "1px solid transparent", color: theme === "dark" ? "#666" : "#aaa", padding: "6px 12px", borderRadius: "8px", cursor: "pointer", textAlign: "left", fontSize: "12px", transition: "all 0.15s" }} onMouseEnter={e => { e.target.style.color = c.textMuted; e.target.style.borderColor = c.sidebarBorder; }} onMouseLeave={e => { e.target.style.color = theme === "dark" ? "#666" : "#aaa"; e.target.style.borderColor = "transparent"; }}>
             {cmd.label}
           </button>
         ))}
         <div style={{ flex: 1 }} />
       </div>
 
-      {/* CHAT */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <div style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
           {messages.map((msg, i) => (
             <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", gap: "12px", alignItems: "flex-start" }}>
               {msg.role === "assistant" && (
-                <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", border: `1px solid ${t.accent}`, flexShrink: 0 }}>
+                <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", border: "1px solid " + c.accent, flexShrink: 0 }}>
                   <img src="/anna-avatar.jpg" alt="Anna" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
               )}
-              <div style={{
-                maxWidth: "70%", padding: "12px 16px",
-                borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                background: msg.role === "user" ? t.userBg : t.msgBg,
-                border: `1px solid ${msg.role === "user" ? t.userBorder : t.msgBorder}`,
-                color: t.text, fontSize: "14px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word",
-              }}>
+              <div style={{ maxWidth: "70%", padding: "12px 16px", borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px", background: msg.role === "user" ? c.userBg : c.msgBg, border: "1px solid " + (msg.role === "user" ? c.userBorder : c.msgBorder), color: c.text, fontSize: "14px", lineHeight: "1.6", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                 {msg.content}
               </div>
               {msg.role === "user" && (
-                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: t.userBg, border: `1px solid ${t.userBorder}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>
-                  👤
-                </div>
+                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: c.userBg, border: "1px solid " + c.userBorder, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>👤</div>
               )}
             </div>
           ))}
           {loading && (
             <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-              <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", border: `1px solid ${t.accent}`, flexShrink: 0 }}>
+              <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", border: "1px solid " + c.accent, flexShrink: 0 }}>
                 <img src="/anna-avatar.jpg" alt="Anna" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
-              <div style={{ padding: "12px 16px", borderRadius: "16px 16px 16px 4px", background: t.msgBg, border: `1px solid ${t.msgBorder}`, color: theme === "dark" ? "#666" : "#aaa", fontSize: "14px" }}>
-                ⏳ Думаю...
-              </div>
+              <div style={{ padding: "12px 16px", borderRadius: "16px 16px 16px 4px", background: c.msgBg, border: "1px solid " + c.msgBorder, color: theme === "dark" ? "#666" : "#aaa", fontSize: "14px" }}>⏳ Думаю...</div>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
 
-        <div style={{ padding: "16px 24px", borderTop: `1px solid ${t.sidebarBorder}`, background: t.inputBarBg }}>
+        <div style={{ padding: "16px 24px", borderTop: "1px solid " + c.sidebarBorder, background: c.inputBarBg }}>
           <div style={{ display: "flex", gap: "12px", alignItems: "flex-end" }}>
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Напиши сообщение... (Enter — отправить, Shift+Enter — новая строка)"
-              rows={1}
-              style={{
-                flex: 1, background: t.inputBg, border: `1px solid ${t.inputBorder}`,
-                borderRadius: "12px", padding: "12px 16px", color: t.text,
-                fontSize: "14px", resize: "none", outline: "none",
-                fontFamily: "inherit", lineHeight: "1.5", maxHeight: "120px", overflow: "auto",
-              }}
-              onInput={(e) => {
-                e.target.style.height = "auto";
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
-              }}
-            />
-            <button
-              onClick={() => sendMessage(input)}
-              disabled={loading || !input.trim()}
-              style={{
-                background: loading || !input.trim() ? t.btnDisabledBg : t.accent,
-                border: "none", borderRadius: "12px", padding: "12px 20px",
-                color: loading || !input.trim() ? t.btnDisabledText : "#fff",
-                cursor: loading || !input.trim() ? "not-allowed" : "pointer",
-                fontSize: "14px", fontWeight: "600", transition: "all 0.15s", whiteSpace: "nowrap",
-              }}
-            >
+            <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Напиши сообщение... (Enter — отправить, Shift+Enter — новая строка)" rows={1} style={{ flex: 1, background: c.inputBg, border: "1px solid " + c.inputBorder, borderRadius: "12px", padding: "12px 16px", color: c.text, fontSize: "14px", resize: "none", outline: "none", fontFamily: "inherit", lineHeight: "1.5", maxHeight: "120px", overflow: "auto" }} onInput={e => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }} />
+            <button onClick={() => sendMessage(input)} disabled={loading || !input.trim()} style={{ background: loading || !input.trim() ? c.btnDisabledBg : c.accent, border: "none", borderRadius: "12px", padding: "12px 20px", color: loading || !input.trim() ? c.btnDisabledText : "#fff", cursor: loading || !input.trim() ? "not-allowed" : "pointer", fontSize: "14px", fontWeight: "600", transition: "all 0.15s", whiteSpace: "nowrap" }}>
               Отправить →
             </button>
           </div>
