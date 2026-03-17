@@ -2,15 +2,15 @@
 import { useState, useRef, useEffect } from "react";
 
 const MODES = [
+  { id: "analyze", label: "🔍 Анализ", prompt: "режим: анализ" },
   { id: "ideas", label: "💡 Идеи", prompt: "режим: идеи" },
   { id: "script", label: "✍️ Скрипт", prompt: "режим: скрипт" },
-  { id: "analyze", label: "🔍 Анализ", prompt: "режим: анализ" },
-  { id: "bend", label: "🌀 Бенд", prompt: "режим: бенд" },
-  { id: "strategy", label: "📊 Стратегия", prompt: "режим: стратегия" },
-  { id: "critic", label: "🔥 Критик", prompt: "режим: критик" },
-  { id: "reddit", label: "👾 Reddit", prompt: "режим: reddit" },
   { id: "dup_competitor", label: "🔁 Дубликат конкурента", prompt: "дубликат конкурента" },
   { id: "dup_own", label: "🔁 Дубликат своего", prompt: "дубликат своего" },
+  { id: "critic", label: "🔥 Критик", prompt: "режим: критик" },
+  { id: "bend", label: "🌀 Бенд", prompt: "режим: бенд" },
+  { id: "reddit", label: "👾 Reddit", prompt: "режим: reddit" },
+  { id: "strategy", label: "📊 Стратегия", prompt: "режим: стратегия" },
 ];
 
 const QUICK_COMMANDS = [
