@@ -83,6 +83,7 @@ export default function Home() {
   const [theme, setTheme] = useState("dark");
   const [stats, setStats] = useState(null);
   const [calDayData, setCalDayData] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
   const messagesEndRef = useRef(null);
   const menuRef = useRef(null);
 
@@ -113,12 +114,14 @@ export default function Home() {
   };
 
   const fetchStats = async () => {
+    setRefreshing(true);
     try {
       const res = await fetch("/api/stats?type=month");
       setStats(await res.json());
     } catch {
       setStats({ web_cost: 0, tg_cost: 0, web_messages: 0, tg_messages: 0, whisper_cost: 0, input_tokens: 0, output_tokens: 0, railway_cost: 0 });
     }
+    setRefreshing(false);
   };
 
   const fetchCalDay = async (year, month, day) => {
@@ -183,7 +186,6 @@ export default function Home() {
 
   const overlayStyle = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
   const modalStyle = { background: c.modalBg, border: "1px solid " + c.modalBorder, borderRadius: "16px", padding: "24px", width: "340px", maxHeight: "85vh", overflowY: "auto" };
-  const modalTitle = { fontSize: "16px", fontWeight: "700", color: c.text, marginBottom: "16px" };
   const closeBtn = { marginTop: "16px", width: "100%", background: c.accent, border: "none", borderRadius: "8px", padding: "10px", color: "#fff", cursor: "pointer", fontSize: "14px" };
 
   return (
@@ -192,7 +194,12 @@ export default function Home() {
       {showStats && (
         <div onClick={() => { setShowStats(false); setShowCalendar(false); }} style={overlayStyle}>
           <div onClick={e => e.stopPropagation()} style={modalStyle}>
-            <div style={modalTitle}>📊 Статистика — {monthName}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <div style={{ fontSize: "16px", fontWeight: "700", color: c.text }}>📊 Статистика — {monthName}</div>
+              <button onClick={fetchStats} disabled={refreshing} style={{ background: c.modalItemBg, border: "1px solid " + c.modalBorder, borderRadius: "8px", padding: "6px 10px", color: c.text, fontSize: "13px", cursor: "pointer" }}>
+                {refreshing ? "..." : "🔄"}
+              </button>
+            </div>
             {!stats ? (
               <div style={{ color: c.textMuted, textAlign: "center", padding: "20px" }}>⏳ Загружаю...</div>
             ) : (
@@ -270,7 +277,7 @@ export default function Home() {
       {showSettings && (
         <div onClick={() => setShowSettings(false)} style={overlayStyle}>
           <div onClick={e => e.stopPropagation()} style={modalStyle}>
-            <div style={modalTitle}>⚙️ Настройки</div>
+            <div style={{ fontSize: "16px", fontWeight: "700", color: c.text, marginBottom: "16px" }}>⚙️ Настройки</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: c.modalItemBg, borderRadius: "10px" }}>
                 <span style={{ color: c.text, fontSize: "14px" }}>{theme === "dark" ? "🌙 Тёмная тема" : "☀️ Светлая тема"}</span>
