@@ -1,8 +1,60 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_KEY,
-});
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_KEY });
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const INPUT_PRICE = 3.0;
+const OUTPUT_PRICE = 15.0;
+
+function getMonthKey() {
+  const now = new Date();
+  return `stats_${now.getFullYear()}_${now.getMonth() + 1}`;
+}
+
+function getDayKey() {
+  const now = new Date();
+  return `day_${now.getFullYear()}_${now.getMonth() + 1}_${now.getDate()}`;
+}
+
+async function redisGet(key) {
+  const res = await fetch(`${REDIS_URL}/get/${key}`, {
+    headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+  });
+  const data = await res.json();
+  if (!data.result) return null;
+  return JSON.parse(data.result);
+}
+
+async function redisSet(key, value) {
+  await fetch(`${REDIS_URL}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${REDIS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(["SET", key, JSON.stringify(value)]),
+  });
+}
+
+async function recordUsage(inputTokens, outputTokens) {
+  const cost = (inputTokens / 1_000_000) * INPUT_PRICE + (outputTokens / 1_000_000) * OUTPUT_PRICE;
+  const monthKey = getMonthKey();
+  const dayKey = getDayKey();
+
+  const current = await redisGet(monthKey) || { web_cost: 0, tg_cost: 0, web_messages: 0, tg_messages: 0, whisper_cost: 0, input_tokens: 0, output_tokens: 0 };
+  current.web_cost = (current.web_cost || 0) + cost;
+  current.web_messages = (current.web_messages || 0) + 1;
+  current.input_tokens = (current.input_tokens || 0) + inputTokens;
+  current.output_tokens = (current.output_tokens || 0) + outputTokens;
+  await redisSet(monthKey, current);
+
+  const day = await redisGet(dayKey) || { web_cost: 0, tg_cost: 0, messages: 0 };
+  day.web_cost = (day.web_cost || 0) + cost;
+  day.messages = (day.messages || 0) + 1;
+  await redisSet(dayKey, day);
+
+  return cost;
+}
 
 const SYSTEM_PROMPT = `Ты — Аня, личный YouTube стратег и скриптрайтер Влада. Твоё имя Аня. Анализируешь конкурентов, пишешь скрипты, генерируешь идеи, строишь стратегию по трём каналам.
 
@@ -169,13 +221,9 @@ Twist: [неожиданный поворот]
 Оценивай жёстко и честно без смягчений.
 
 == РЕЖИМ: REDDIT ==
-Переключайся на Midnight Archive, пиши и анализирую Reddit-формат.
+Переключайся на Midnight Archive, пиши и анализируй Reddit-формат.
 
 ГОЛОС: Короткие предложения. Прямые утверждения. Никакого гуру-тона. Всегда представляйся как Аня.`;
-
-// Claude Sonnet 4 pricing per million tokens
-const INPUT_PRICE_PER_M = 3.0;
-const OUTPUT_PRICE_PER_M = 15.0;
 
 export async function POST(request) {
   try {
@@ -185,21 +233,19 @@ export async function POST(request) {
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
       system: SYSTEM_PROMPT,
-      messages: messages,
+      messages,
     });
 
     const inputTokens = response.usage.input_tokens;
     const outputTokens = response.usage.output_tokens;
-    const cost = (inputTokens / 1_000_000) * INPUT_PRICE_PER_M + (outputTokens / 1_000_000) * OUTPUT_PRICE_PER_M;
 
-    return Response.json({
-      content: response.content[0].text,
-      usage: {
-        input_tokens: inputTokens,
-        output_tokens: outputTokens,
-        cost: cost,
-      },
-    });
+    try {
+      await recordUsage(inputTokens, outputTokens);
+    } catch (e) {
+      console.error("Redis write error:", e);
+    }
+
+    return Response.json({ content: response.content[0].text });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
