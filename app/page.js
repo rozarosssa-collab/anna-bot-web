@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import LinkItem from "../components/LinkItem";
 
 const MODES = [
   { id: "ideas", label: "💡 Идеи", prompt: "режим: идеи" },
@@ -72,33 +73,6 @@ const THEMES = {
     hoverBg: "#f0f0f0", highlightBg: "#ede9fe",
   },
 };
-
-function LinkItem({ link, colors }) {
-  return (
-    
-      href={link.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "12px",
-        background: colors.modalItemBg,
-        border: "1px solid " + colors.modalBorder,
-        borderRadius: "10px",
-        textDecoration: "none",
-        marginBottom: "8px",
-      }}
-    >
-      <div>
-        <div style={{ fontSize: "14px", fontWeight: "600", color: colors.text }}>{link.label}</div>
-        <div style={{ fontSize: "12px", color: colors.textDim }}>{link.desc}</div>
-      </div>
-      <div style={{ color: colors.textDim, fontSize: "14px" }}>↗</div>
-    </a>
-  );
-}
 
 export default function Home() {
   const [messages, setMessages] = useState(() => {
@@ -334,7 +308,9 @@ export default function Home() {
           <div onClick={e => e.stopPropagation()} style={modalStyle}>
             <div style={modalTitle}>🔗 Сервисы</div>
             <div>
-              {LINKS.map(link => <LinkItem key={link.url} link={link} colors={c} />)}
+              {LINKS.map(link => (
+                <LinkItem key={link.url} link={link} colors={c} />
+              ))}
             </div>
             <button onClick={() => setShowLinks(false)} style={closeBtn}>Закрыть</button>
           </div>
