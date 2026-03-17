@@ -59,9 +59,11 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeMode, setActiveMode] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [stats, setStats] = useState({ cost: 0, messages: 0, input_tokens: 0, output_tokens: 0 });
   const messagesEndRef = useRef(null);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     setStats(loadStats());
@@ -70,6 +72,16 @@ export default function Home() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const saveHistory = (msgs) => {
     if (typeof window !== "undefined") {
@@ -147,7 +159,7 @@ export default function Home() {
       {showStats && (
         <div
           onClick={() => setShowStats(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -158,7 +170,7 @@ export default function Home() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#1a1a1a", borderRadius: "8px" }}>
-                <span style={{ color: "#888", fontSize: "13px" }}>💰 Потрачено</span>
+                <span style={{ color: "#888", fontSize: "13px" }}>💰 Потрачено (веб)</span>
                 <span style={{ color: "#818cf8", fontWeight: "700", fontSize: "15px" }}>${stats.cost.toFixed(4)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#1a1a1a", borderRadius: "8px" }}>
@@ -174,7 +186,7 @@ export default function Home() {
                 <span style={{ color: "#fff", fontSize: "14px" }}>{stats.output_tokens.toLocaleString()}</span>
               </div>
               <div style={{ padding: "10px 12px", background: "#1a1a2e", border: "1px solid #4f46e5", borderRadius: "8px", fontSize: "12px", color: "#818cf8", textAlign: "center" }}>
-                Сбрасывается автоматически 1-го числа каждого месяца
+                Только веб-версия. Сбрасывается 1-го числа.
               </div>
             </div>
             <button
@@ -190,18 +202,57 @@ export default function Home() {
       {/* SIDEBAR */}
       <div style={{ width: "240px", background: "#111", borderRight: "1px solid #222", display: "flex", flexDirection: "column", padding: "16px", gap: "8px" }}>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", paddingBottom: "12px", borderBottom: "1px solid #222" }}>
+        {/* AVATAR + DROPDOWN */}
+        <div style={{ position: "relative", marginBottom: "8px", paddingBottom: "12px", borderBottom: "1px solid #222" }} ref={menuRef}>
           <div
-            onClick={() => setShowStats(true)}
-            style={{ width: "36px", height: "36px", borderRadius: "10px", overflow: "hidden", border: "1px solid #4f46e5", flexShrink: 0, cursor: "pointer" }}
-            title="Статистика расходов"
+            onClick={() => setShowMenu(!showMenu)}
+            style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}
           >
-            <img src="/anna-avatar.jpg" alt="Anna" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <div style={{ width: "36px", height: "36px", borderRadius: "10px", overflow: "hidden", border: "1px solid #4f46e5", flexShrink: 0 }}>
+              <img src="/anna-avatar.jpg" alt="Anna" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "15px", fontWeight: "700", color: "#fff" }}>Anna Bot</div>
+              <div style={{ fontSize: "11px", color: "#555" }}>${stats.cost.toFixed(3)} этот месяц</div>
+            </div>
+            <div style={{ color: "#555", fontSize: "12px" }}>{showMenu ? "▲" : "▼"}</div>
           </div>
-          <div>
-            <div style={{ fontSize: "15px", fontWeight: "700", color: "#fff" }}>Anna Bot</div>
-            <div style={{ fontSize: "11px", color: "#555" }}>${stats.cost.toFixed(3)} этот месяц</div>
-          </div>
+
+          {/* DROPDOWN MENU */}
+          {showMenu && (
+            <div style={{
+              position: "absolute",
+              top: "48px",
+              left: 0,
+              right: 0,
+              background: "#1a1a1a",
+              border: "1px solid #333",
+              borderRadius: "10px",
+              overflow: "hidden",
+              zIndex: 100,
+            }}>
+              <button
+                onClick={() => { setShowStats(true); setShowMenu(false); }}
+                style={{
+                  width: "100%",
+                  background: "transparent",
+                  border: "none",
+                  padding: "10px 14px",
+                  color: "#ccc",
+                  fontSize: "13px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "#252525"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+              >
+                📊 Статистика расходов
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ fontSize: "11px", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>
@@ -274,7 +325,6 @@ export default function Home() {
 
       {/* CHAT */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-
         <div style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
           {messages.map((msg, i) => (
             <div
