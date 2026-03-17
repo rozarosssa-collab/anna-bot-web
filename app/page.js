@@ -20,55 +20,21 @@ const QUICK_COMMANDS = [
   { label: "🚨 Вирал", value: "Проверь вирусные видео конкурентов" },
 ];
 
+const LINKS = [
+  { label: "🚂 Railway", desc: "Хостинг Telegram бота", url: "https://railway.app" },
+  { label: "▲ Vercel", desc: "Хостинг веб-версии", url: "https://vercel.com" },
+  { label: "🤖 Anthropic", desc: "Claude API + расходы", url: "https://console.anthropic.com" },
+  { label: "🎙 OpenAI", desc: "Whisper голос", url: "https://platform.openai.com" },
+  { label: "📺 YouTube API", desc: "Аналитика каналов", url: "https://console.cloud.google.com" },
+  { label: "🗄 Upstash", desc: "Redis база данных", url: "https://console.upstash.com" },
+  { label: "🐙 GitHub", desc: "Репозитории кода", url: "https://github.com/rozarosssa-collab" },
+  { label: "💬 Telegram Bot", desc: "@Anna_yt_assistant_bot", url: "https://t.me/Anna_yt_assistant_bot" },
+];
+
 const INITIAL_MESSAGE = {
   role: "assistant",
   content: "Привет, Влад. Я готова к работе.\n\nВыбери режим слева или напиши напрямую.",
 };
-
-function getMonthKey() {
-  const now = new Date();
-  return `anna_cost_${now.getFullYear()}_${now.getMonth() + 1}`;
-}
-
-function getDayKey(date) {
-  return `anna_day_${date.getFullYear()}_${date.getMonth() + 1}_${date.getDate()}`;
-}
-
-function loadStats() {
-  if (typeof window === "undefined") return { cost: 0, messages: 0, input_tokens: 0, output_tokens: 0 };
-  try {
-    const saved = localStorage.getItem(getMonthKey());
-    return saved ? JSON.parse(saved) : { cost: 0, messages: 0, input_tokens: 0, output_tokens: 0 };
-  } catch {
-    return { cost: 0, messages: 0, input_tokens: 0, output_tokens: 0 };
-  }
-}
-
-function saveStats(stats) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(getMonthKey(), JSON.stringify(stats));
-}
-
-function loadDayStats(date) {
-  if (typeof window === "undefined") return { cost: 0, messages: 0 };
-  try {
-    const saved = localStorage.getItem(getDayKey(date));
-    return saved ? JSON.parse(saved) : { cost: 0, messages: 0 };
-  } catch {
-    return { cost: 0, messages: 0 };
-  }
-}
-
-function saveDayStats(cost, messages) {
-  if (typeof window === "undefined") return;
-  const today = new Date();
-  const key = getDayKey(today);
-  const current = loadDayStats(today);
-  localStorage.setItem(key, JSON.stringify({
-    cost: current.cost + cost,
-    messages: current.messages + messages,
-  }));
-}
 
 function loadTheme() {
   if (typeof window === "undefined") return "dark";
@@ -91,6 +57,7 @@ const THEMES = {
     modalBg: "#161616", modalBorder: "#333", modalItemBg: "#1a1a1a",
     dropdownBg: "#1a1a1a", dropdownBorder: "#333",
     btnDisabledBg: "#1a1a1a", btnDisabledText: "#444",
+    hoverBg: "#252525",
   },
   light: {
     bg: "#f5f5f5", sidebar: "#ffffff", sidebarBorder: "#e0e0e0",
@@ -102,6 +69,7 @@ const THEMES = {
     modalBg: "#ffffff", modalBorder: "#e0e0e0", modalItemBg: "#f5f5f5",
     dropdownBg: "#ffffff", dropdownBorder: "#e0e0e0",
     btnDisabledBg: "#f0f0f0", btnDisabledText: "#bbbbbb",
+    hoverBg: "#f0f0f0",
   },
 };
 
@@ -123,13 +91,14 @@ export default function Home() {
   const [showStats, setShowStats] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [stats, setStats] = useState({ cost: 0, messages: 0, input_tokens: 0, output_tokens: 0 });
+  const [showLinks, setShowLinks] = useState(false);
   const [theme, setTheme] = useState("dark");
+  const [stats, setStats] = useState(null);
+  const [calDayData, setCalDayData] = useState({});
   const messagesEndRef = useRef(null);
   const menuRef = useRef(null);
 
   useEffect(() => {
-    setStats(loadStats());
     setTheme(loadTheme());
   }, []);
 
@@ -147,6 +116,26 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const fetchStats = async () => {
+    try {
+      const res = await fetch("/api/stats?type=month");
+      const data = await res.json();
+      setStats(data);
+    } catch {
+      setStats({ web_cost: 0, tg_cost: 0, web_messages: 0, tg_messages: 0, whisper_cost: 0, input_tokens: 0, output_tokens: 0, railway_cost: 0 });
+    }
+  };
+
+  const fetchCalendarDay = async (year, month, day) => {
+    const key = `${year}_${month}_${day}`;
+    if (calDayData[key]) return;
+    try {
+      const res = await fetch(`/api/stats?type=day&year=${year}&month=${month}&day=${day}`);
+      const data = await res.json();
+      setCalDayData(prev => ({ ...prev, [key]: data }));
+    } catch {}
+  };
+
   const t = THEMES[theme];
 
   const toggleTheme = () => {
@@ -159,19 +148,6 @@ export default function Home() {
     if (typeof window !== "undefined") {
       localStorage.setItem("anna_chat_history", JSON.stringify(msgs));
     }
-  };
-
-  const updateStats = (usage) => {
-    const current = loadStats();
-    const updated = {
-      cost: current.cost + usage.cost,
-      messages: current.messages + 1,
-      input_tokens: current.input_tokens + usage.input_tokens,
-      output_tokens: current.output_tokens + usage.output_tokens,
-    };
-    saveStats(updated);
-    saveDayStats(usage.cost, 1);
-    setStats(updated);
   };
 
   const sendMessage = async (text) => {
@@ -191,7 +167,6 @@ export default function Home() {
         }),
       });
       const data = await res.json();
-      if (data.usage) updateStats(data.usage);
       const updated = [...newMessages, { role: "assistant", content: data.content }];
       setMessages(updated);
       saveHistory(updated);
@@ -220,20 +195,29 @@ export default function Home() {
     setMessages(initial);
     saveHistory(initial);
     setActiveMode(null);
-    const empty = { cost: 0, messages: 0, input_tokens: 0, output_tokens: 0 };
-    saveStats(empty);
-    setStats(empty);
     setShowSettings(false);
   };
 
   const now = new Date();
   const monthName = now.toLocaleString("ru", { month: "long" });
-
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
   const calendarDays = [];
   for (let i = 0; i < (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1); i++) calendarDays.push(null);
   for (let d = 1; d <= daysInMonth; d++) calendarDays.push(d);
+
+  const totalCost = stats ? (
+    (stats.web_cost || 0) +
+    (stats.tg_cost || 0) +
+    (stats.whisper_cost || 0) +
+    (stats.railway_cost || 0)
+  ) : 0;
+
+  const modalStyle = {
+    background: t.modalBg, border: `1px solid ${t.modalBorder}`,
+    borderRadius: "16px", padding: "24px", width: "340px",
+    maxHeight: "85vh", overflowY: "auto",
+  };
 
   return (
     <div style={{ display: "flex", height: "100vh", background: t.bg, color: t.text, fontFamily: "system-ui, sans-serif" }}>
@@ -241,89 +225,107 @@ export default function Home() {
       {/* STATS MODAL */}
       {showStats && (
         <div onClick={() => { setShowStats(false); setShowCalendar(false); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: t.modalBg, border: `1px solid ${t.modalBorder}`, borderRadius: "16px", padding: "24px", width: "340px", maxHeight: "80vh", overflowY: "auto" }}>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: t.text, marginBottom: "16px" }}>
-              📊 Статистика — {monthName}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: t.modalItemBg, borderRadius: "8px" }}>
-                <span style={{ color: t.textMuted, fontSize: "13px" }}>💰 Потрачено (веб)</span>
-                <span style={{ color: t.accent, fontWeight: "700", fontSize: "15px" }}>${stats.cost.toFixed(4)}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: t.modalItemBg, borderRadius: "8px" }}>
-                <span style={{ color: t.textMuted, fontSize: "13px" }}>💬 Сообщений</span>
-                <span style={{ color: t.text, fontSize: "14px" }}>{stats.messages}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: t.modalItemBg, borderRadius: "8px" }}>
-                <span style={{ color: t.textMuted, fontSize: "13px" }}>📥 Входящих токенов</span>
-                <span style={{ color: t.text, fontSize: "14px" }}>{stats.input_tokens.toLocaleString()}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: t.modalItemBg, borderRadius: "8px" }}>
-                <span style={{ color: t.textMuted, fontSize: "13px" }}>📤 Исходящих токенов</span>
-                <span style={{ color: t.text, fontSize: "14px" }}>{stats.output_tokens.toLocaleString()}</span>
-              </div>
+          <div onClick={(e) => e.stopPropagation()} style={modalStyle}>
+            <div style={{ fontSize: "16px", fontWeight: "700", color: t.text, marginBottom: "16px" }}>📊 Статистика — {monthName}</div>
+            {!stats ? (
+              <div style={{ color: t.textMuted, textAlign: "center", padding: "20px" }}>⏳ Загружаю...</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ padding: "12px", background: theme === "dark" ? "#1a1a2e" : "#ede9fe", border: `1px solid ${t.accent}`, borderRadius: "10px", textAlign: "center" }}>
+                  <div style={{ fontSize: "11px", color: t.accentText, marginBottom: "4px" }}>ВСЕГО ЗА МЕСЯЦ</div>
+                  <div style={{ fontSize: "24px", fontWeight: "800", color: t.accent }}>${totalCost.toFixed(4)}</div>
+                </div>
 
-              {/* CALENDAR BUTTON */}
-              <button
-                onClick={() => setShowCalendar(!showCalendar)}
-                style={{ background: t.modalItemBg, border: `1px solid ${t.modalBorder}`, borderRadius: "8px", padding: "10px 12px", color: t.text, fontSize: "13px", cursor: "pointer", textAlign: "left" }}
-              >
-                📅 {showCalendar ? "Скрыть календарь" : "История по дням"}
-              </button>
-
-              {/* CALENDAR */}
-              {showCalendar && (
-                <div style={{ background: t.modalItemBg, borderRadius: "10px", padding: "12px" }}>
-                  <div style={{ fontSize: "12px", color: t.textMuted, marginBottom: "8px", textAlign: "center", fontWeight: "600" }}>
-                    {now.toLocaleString("ru", { month: "long", year: "numeric" })}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <div style={{ padding: "10px", background: t.modalItemBg, borderRadius: "8px" }}>
+                    <div style={{ fontSize: "11px", color: t.textDim }}>🌐 Веб (Claude)</div>
+                    <div style={{ fontSize: "14px", fontWeight: "600", color: t.text }}>${(stats.web_cost || 0).toFixed(4)}</div>
+                    <div style={{ fontSize: "11px", color: t.textDim }}>{stats.web_messages || 0} сообщ.</div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px", marginBottom: "6px" }}>
-                    {["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].map(d => (
-                      <div key={d} style={{ textAlign: "center", fontSize: "10px", color: t.textDim, padding: "2px" }}>{d}</div>
-                    ))}
+                  <div style={{ padding: "10px", background: t.modalItemBg, borderRadius: "8px" }}>
+                    <div style={{ fontSize: "11px", color: t.textDim }}>💬 Telegram (Claude)</div>
+                    <div style={{ fontSize: "14px", fontWeight: "600", color: t.text }}>${(stats.tg_cost || 0).toFixed(4)}</div>
+                    <div style={{ fontSize: "11px", color: t.textDim }}>{stats.tg_messages || 0} сообщ.</div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px" }}>
-                    {calendarDays.map((day, i) => {
-                      if (!day) return <div key={`empty-${i}`} />;
-                      const date = new Date(now.getFullYear(), now.getMonth(), day);
-                      const dayData = loadDayStats(date);
-                      const isToday = day === now.getDate();
-                      const hasActivity = dayData.messages > 0;
-                      return (
-                        <div
-                          key={day}
-                          title={hasActivity ? `${dayData.messages} сообщ. | $${dayData.cost.toFixed(4)}` : ""}
-                          style={{
-                            textAlign: "center",
-                            padding: "4px 2px",
-                            borderRadius: "6px",
-                            fontSize: "11px",
-                            background: isToday ? t.accent : hasActivity ? (theme === "dark" ? "#1a1a2e" : "#ede9fe") : "transparent",
-                            color: isToday ? "#fff" : hasActivity ? t.accentText : t.textDim,
-                            border: isToday ? `1px solid ${t.accent}` : hasActivity ? `1px solid ${theme === "dark" ? "#4f46e5" : "#c4b5fd"}` : "1px solid transparent",
-                            cursor: hasActivity ? "pointer" : "default",
-                          }}
-                        >
-                          {day}
-                          {hasActivity && <div style={{ fontSize: "9px", color: isToday ? "#fff" : t.accentText }}>${dayData.cost.toFixed(2)}</div>}
-                        </div>
-                      );
-                    })}
+                  <div style={{ padding: "10px", background: t.modalItemBg, borderRadius: "8px" }}>
+                    <div style={{ fontSize: "11px", color: t.textDim }}>🎤 Whisper (голос)</div>
+                    <div style={{ fontSize: "14px", fontWeight: "600", color: t.text }}>${(stats.whisper_cost || 0).toFixed(4)}</div>
                   </div>
-                  <div style={{ marginTop: "8px", fontSize: "11px", color: t.textDim, textAlign: "center" }}>
-                    Наведи на день чтобы увидеть детали
+                  <div style={{ padding: "10px", background: t.modalItemBg, borderRadius: "8px" }}>
+                    <div style={{ fontSize: "11px", color: t.textDim }}>🚂 Railway (хостинг)</div>
+                    <div style={{ fontSize: "14px", fontWeight: "600", color: t.text }}>${(stats.railway_cost || 0).toFixed(2)}</div>
+                    <div style={{ fontSize: "11px", color: t.textDim }}>из $5.00/мес</div>
                   </div>
                 </div>
-              )}
 
-              <div style={{ padding: "10px 12px", background: theme === "dark" ? "#1a1a2e" : "#ede9fe", border: `1px solid ${t.accent}`, borderRadius: "8px", fontSize: "12px", color: t.accentText, textAlign: "center" }}>
-                Только веб-версия. Сбрасывается 1-го числа.
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", background: t.modalItemBg, borderRadius: "8px", fontSize: "12px" }}>
+                  <span style={{ color: t.textDim }}>📥 Входящих токенов</span>
+                  <span style={{ color: t.text }}>{(stats.input_tokens || 0).toLocaleString()}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", background: t.modalItemBg, borderRadius: "8px", fontSize: "12px" }}>
+                  <span style={{ color: t.textDim }}>📤 Исходящих токенов</span>
+                  <span style={{ color: t.text }}>{(stats.output_tokens || 0).toLocaleString()}</span>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setShowCalendar(!showCalendar);
+                    if (!showCalendar) {
+                      for (let d = 1; d <= now.getDate(); d++) {
+                        fetchCalendarDay(now.getFullYear(), now.getMonth() + 1, d);
+                      }
+                    }
+                  }}
+                  style={{ background: t.modalItemBg, border: `1px solid ${t.modalBorder}`, borderRadius: "8px", padding: "10px 12px", color: t.text, fontSize: "13px", cursor: "pointer", textAlign: "left" }}
+                >
+                  📅 {showCalendar ? "Скрыть календарь" : "История по дням"}
+                </button>
+
+                {showCalendar && (
+                  <div style={{ background: t.modalItemBg, borderRadius: "10px", padding: "12px" }}>
+                    <div style={{ fontSize: "12px", color: t.textMuted, marginBottom: "8px", textAlign: "center", fontWeight: "600" }}>
+                      {now.toLocaleString("ru", { month: "long", year: "numeric" })}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px", marginBottom: "6px" }}>
+                      {["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].map(d => (
+                        <div key={d} style={{ textAlign: "center", fontSize: "10px", color: t.textDim, padding: "2px" }}>{d}</div>
+                      ))}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "3px" }}>
+                      {calendarDays.map((day, i) => {
+                        if (!day) return <div key={`e-${i}`} />;
+                        const key = `${now.getFullYear()}_${now.getMonth() + 1}_${day}`;
+                        const dayData = calDayData[key];
+                        const isToday = day === now.getDate();
+                        const dayCost = dayData ? ((dayData.web_cost || 0) + (dayData.tg_cost || 0)) : 0;
+                        const hasActivity = dayCost > 0;
+                        return (
+                          <div
+                            key={day}
+                            title={hasActivity ? `${dayData.messages || 0} сообщ. | $${dayCost.toFixed(4)}` : ""}
+                            style={{
+                              textAlign: "center", padding: "4px 2px", borderRadius: "6px", fontSize: "11px",
+                              background: isToday ? t.accent : hasActivity ? (theme === "dark" ? "#1a1a2e" : "#ede9fe") : "transparent",
+                              color: isToday ? "#fff" : hasActivity ? t.accentText : t.textDim,
+                              border: isToday ? `1px solid ${t.accent}` : hasActivity ? `1px solid ${t.accent}` : "1px solid transparent",
+                              cursor: hasActivity ? "pointer" : "default",
+                            }}
+                          >
+                            {day}
+                            {hasActivity && <div style={{ fontSize: "9px" }}>${dayCost.toFixed(2)}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ padding: "8px 10px", background: theme === "dark" ? "#1a1a2e" : "#ede9fe", border: `1px solid ${t.accent}`, borderRadius: "8px", fontSize: "11px", color: t.accentText, textAlign: "center" }}>
+                  Данные со всех источников. Сбрасывается 1-го числа.
+                </div>
               </div>
-            </div>
-            <button
-              onClick={() => { setShowStats(false); setShowCalendar(false); }}
-              style={{ marginTop: "16px", width: "100%", background: t.accent, border: "none", borderRadius: "8px", padding: "10px", color: "#fff", cursor: "pointer", fontSize: "14px" }}
-            >
+            )}
+            <button onClick={() => { setShowStats(false); setShowCalendar(false); }} style={{ marginTop: "16px", width: "100%", background: t.accent, border: "none", borderRadius: "8px", padding: "10px", color: "#fff", cursor: "pointer", fontSize: "14px" }}>
               Закрыть
             </button>
           </div>
@@ -333,51 +335,61 @@ export default function Home() {
       {/* SETTINGS MODAL */}
       {showSettings && (
         <div onClick={() => setShowSettings(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: t.modalBg, border: `1px solid ${t.modalBorder}`, borderRadius: "16px", padding: "24px", width: "300px" }}>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: t.text, marginBottom: "16px" }}>
-              ⚙️ Настройки
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div onClick={(e) => e.stopPropagation()} style={modalStyle}>
+            <div style={{ fontSize: "16px", fontWeight: "700", color: t.text, marginBottom: "16px" }}>⚙️ Настройки</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
 
-              {/* THEME TOGGLE */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: t.modalItemBg, borderRadius: "10px" }}>
-                <span style={{ color: t.text, fontSize: "14px" }}>
-                  {theme === "dark" ? "🌙 Тёмная тема" : "☀️ Светлая тема"}
-                </span>
-                <div
-                  onClick={toggleTheme}
-                  style={{
-                    width: "44px", height: "24px", borderRadius: "12px",
-                    background: theme === "dark" ? t.accent : "#d1d5db",
-                    position: "relative", cursor: "pointer", transition: "background 0.2s",
-                  }}
-                >
-                  <div style={{
-                    position: "absolute", top: "2px",
-                    left: theme === "dark" ? "22px" : "2px",
-                    width: "20px", height: "20px", borderRadius: "50%",
-                    background: "#fff", transition: "left 0.2s",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                  }} />
+                <span style={{ color: t.text, fontSize: "14px" }}>{theme === "dark" ? "🌙 Тёмная тема" : "☀️ Светлая тема"}</span>
+                <div onClick={toggleTheme} style={{ width: "44px", height: "24px", borderRadius: "12px", background: theme === "dark" ? t.accent : "#d1d5db", position: "relative", cursor: "pointer", transition: "background 0.2s" }}>
+                  <div style={{ position: "absolute", top: "2px", left: theme === "dark" ? "22px" : "2px", width: "20px", height: "20px", borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
                 </div>
               </div>
 
-              {/* CLEAR ALL */}
+              <button
+                onClick={() => { setShowLinks(true); setShowSettings(false); }}
+                style={{ background: t.modalItemBg, border: `1px solid ${t.modalBorder}`, borderRadius: "10px", padding: "12px", color: t.text, fontSize: "14px", cursor: "pointer", textAlign: "left" }}
+              >
+                🔗 Ссылки на сервисы
+              </button>
+
               <button
                 onClick={clearAll}
-                style={{
-                  background: "transparent", border: "1px solid #ef4444",
-                  borderRadius: "10px", padding: "12px",
-                  color: "#ef4444", fontSize: "14px", cursor: "pointer", textAlign: "left",
-                }}
+                style={{ background: "transparent", border: "1px solid #ef4444", borderRadius: "10px", padding: "12px", color: "#ef4444", fontSize: "14px", cursor: "pointer", textAlign: "left" }}
               >
                 🗑️ Очистить всё (чат + статистика)
               </button>
             </div>
-            <button
-              onClick={() => setShowSettings(false)}
-              style={{ marginTop: "16px", width: "100%", background: t.accent, border: "none", borderRadius: "8px", padding: "10px", color: "#fff", cursor: "pointer", fontSize: "14px" }}
-            >
+            <button onClick={() => setShowSettings(false)} style={{ marginTop: "16px", width: "100%", background: t.accent, border: "none", borderRadius: "8px", padding: "10px", color: "#fff", cursor: "pointer", fontSize: "14px" }}>
+              Закрыть
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* LINKS MODAL */}
+      {showLinks && (
+        <div onClick={() => setShowLinks(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} style={modalStyle}>
+            <div style={{ fontSize: "16px", fontWeight: "700", color: t.text, marginBottom: "16px" }}>🔗 Сервисы</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {LINKS.map((link) => (
+                
+                  key={link.url}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: t.modalItemBg, border: `1px solid ${t.modalBorder}`, borderRadius: "10px", textDecoration: "none", cursor: "pointer" }}
+                >
+                  <div>
+                    <div style={{ fontSize: "14px", fontWeight: "600", color: t.text }}>{link.label}</div>
+                    <div style={{ fontSize: "12px", color: t.textDim }}>{link.desc}</div>
+                  </div>
+                  <div style={{ color: t.textDim, fontSize: "14px" }}>↗</div>
+                </a>
+              ))}
+            </div>
+            <button onClick={() => setShowLinks(false)} style={{ marginTop: "16px", width: "100%", background: t.accent, border: "none", borderRadius: "8px", padding: "10px", color: "#fff", cursor: "pointer", fontSize: "14px" }}>
               Закрыть
             </button>
           </div>
@@ -387,7 +399,6 @@ export default function Home() {
       {/* SIDEBAR */}
       <div style={{ width: "240px", background: t.sidebar, borderRight: `1px solid ${t.sidebarBorder}`, display: "flex", flexDirection: "column", padding: "16px", gap: "8px" }}>
 
-        {/* AVATAR + DROPDOWN */}
         <div style={{ position: "relative", marginBottom: "8px", paddingBottom: "12px", borderBottom: `1px solid ${t.sidebarBorder}` }} ref={menuRef}>
           <div onClick={() => setShowMenu(!showMenu)} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
             <div style={{ width: "36px", height: "36px", borderRadius: "10px", overflow: "hidden", border: `1px solid ${t.accent}`, flexShrink: 0 }}>
@@ -395,7 +406,7 @@ export default function Home() {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: "15px", fontWeight: "700", color: t.text }}>Anna Bot</div>
-              <div style={{ fontSize: "11px", color: t.textDim }}>${stats.cost.toFixed(3)} этот месяц</div>
+              <div style={{ fontSize: "11px", color: t.textDim }}>{stats ? `$${totalCost.toFixed(3)} этот месяц` : "..."}</div>
             </div>
             <div style={{ color: t.textDim, fontSize: "12px" }}>{showMenu ? "▲" : "▼"}</div>
           </div>
@@ -403,17 +414,17 @@ export default function Home() {
           {showMenu && (
             <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: t.dropdownBg, border: `1px solid ${t.dropdownBorder}`, borderRadius: "10px", overflow: "hidden", zIndex: 100 }}>
               <button
-                onClick={() => { setShowStats(true); setShowMenu(false); }}
-                style={{ width: "100%", background: "transparent", border: "none", padding: "10px 14px", color: t.text, fontSize: "13px", textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}
-                onMouseEnter={(e) => e.currentTarget.style.background = theme === "dark" ? "#252525" : "#f5f5f5"}
+                onClick={() => { fetchStats(); setShowStats(true); setShowMenu(false); }}
+                style={{ width: "100%", background: "transparent", border: "none", padding: "10px 14px", color: t.text, fontSize: "13px", textAlign: "left", cursor: "pointer" }}
+                onMouseEnter={(e) => e.currentTarget.style.background = t.hoverBg}
                 onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
               >
                 📊 Статистика расходов
               </button>
               <button
                 onClick={() => { setShowSettings(true); setShowMenu(false); }}
-                style={{ width: "100%", background: "transparent", border: "none", padding: "10px 14px", color: t.text, fontSize: "13px", textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}
-                onMouseEnter={(e) => e.currentTarget.style.background = theme === "dark" ? "#252525" : "#f5f5f5"}
+                style={{ width: "100%", background: "transparent", border: "none", padding: "10px 14px", color: t.text, fontSize: "13px", textAlign: "left", cursor: "pointer" }}
+                onMouseEnter={(e) => e.currentTarget.style.background = t.hoverBg}
                 onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
               >
                 ⚙️ Настройки
@@ -422,9 +433,7 @@ export default function Home() {
           )}
         </div>
 
-        <div style={{ fontSize: "11px", color: t.textDim, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>
-          Режимы
-        </div>
+        <div style={{ fontSize: "11px", color: t.textDim, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Режимы</div>
 
         {MODES.map((mode) => (
           <button
@@ -442,9 +451,7 @@ export default function Home() {
           </button>
         ))}
 
-        <div style={{ fontSize: "11px", color: t.textDim, textTransform: "uppercase", letterSpacing: "1px", marginTop: "12px", marginBottom: "4px" }}>
-          Быстрые команды
-        </div>
+        <div style={{ fontSize: "11px", color: t.textDim, textTransform: "uppercase", letterSpacing: "1px", marginTop: "12px", marginBottom: "4px" }}>Быстрые команды</div>
 
         {QUICK_COMMANDS.map((cmd) => (
           <button
@@ -487,7 +494,6 @@ export default function Home() {
               )}
             </div>
           ))}
-
           {loading && (
             <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
               <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", border: `1px solid ${t.accent}`, flexShrink: 0 }}>
