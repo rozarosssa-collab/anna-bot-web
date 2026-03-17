@@ -235,7 +235,6 @@ export default function Home() {
                   <div style={{ fontSize: "11px", color: t.accentText, marginBottom: "4px" }}>ВСЕГО ЗА МЕСЯЦ</div>
                   <div style={{ fontSize: "24px", fontWeight: "800", color: t.accent }}>${totalCost.toFixed(4)}</div>
                 </div>
-
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                   <div style={{ padding: "10px", background: t.modalItemBg, borderRadius: "8px" }}>
                     <div style={{ fontSize: "11px", color: t.textDim }}>🌐 Веб (Claude)</div>
@@ -257,7 +256,6 @@ export default function Home() {
                     <div style={{ fontSize: "11px", color: t.textDim }}>из $5.00/мес</div>
                   </div>
                 </div>
-
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", background: t.modalItemBg, borderRadius: "8px", fontSize: "12px" }}>
                   <span style={{ color: t.textDim }}>📥 Входящих токенов</span>
                   <span style={{ color: t.text }}>{(stats.input_tokens || 0).toLocaleString()}</span>
@@ -266,7 +264,6 @@ export default function Home() {
                   <span style={{ color: t.textDim }}>📤 Исходящих токенов</span>
                   <span style={{ color: t.text }}>{(stats.output_tokens || 0).toLocaleString()}</span>
                 </div>
-
                 <button
                   onClick={() => {
                     setShowCalendar(!showCalendar);
@@ -280,7 +277,6 @@ export default function Home() {
                 >
                   📅 {showCalendar ? "Скрыть календарь" : "История по дням"}
                 </button>
-
                 {showCalendar && (
                   <div style={{ background: t.modalItemBg, borderRadius: "10px", padding: "12px" }}>
                     <div style={{ fontSize: "12px", color: t.textMuted, marginBottom: "8px", textAlign: "center", fontWeight: "600" }}>
@@ -308,7 +304,6 @@ export default function Home() {
                               background: isToday ? t.accent : hasActivity ? (theme === "dark" ? "#1a1a2e" : "#ede9fe") : "transparent",
                               color: isToday ? "#fff" : hasActivity ? t.accentText : t.textDim,
                               border: isToday ? `1px solid ${t.accent}` : hasActivity ? `1px solid ${t.accent}` : "1px solid transparent",
-                              cursor: hasActivity ? "pointer" : "default",
                             }}
                           >
                             {day}
@@ -319,7 +314,6 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-
                 <div style={{ padding: "8px 10px", background: theme === "dark" ? "#1a1a2e" : "#ede9fe", border: `1px solid ${t.accent}`, borderRadius: "8px", fontSize: "11px", color: t.accentText, textAlign: "center" }}>
                   Данные со всех источников. Сбрасывается 1-го числа.
                 </div>
@@ -338,21 +332,18 @@ export default function Home() {
           <div onClick={(e) => e.stopPropagation()} style={modalStyle}>
             <div style={{ fontSize: "16px", fontWeight: "700", color: t.text, marginBottom: "16px" }}>⚙️ Настройки</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: t.modalItemBg, borderRadius: "10px" }}>
                 <span style={{ color: t.text, fontSize: "14px" }}>{theme === "dark" ? "🌙 Тёмная тема" : "☀️ Светлая тема"}</span>
                 <div onClick={toggleTheme} style={{ width: "44px", height: "24px", borderRadius: "12px", background: theme === "dark" ? t.accent : "#d1d5db", position: "relative", cursor: "pointer", transition: "background 0.2s" }}>
                   <div style={{ position: "absolute", top: "2px", left: theme === "dark" ? "22px" : "2px", width: "20px", height: "20px", borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
                 </div>
               </div>
-
               <button
                 onClick={() => { setShowLinks(true); setShowSettings(false); }}
                 style={{ background: t.modalItemBg, border: `1px solid ${t.modalBorder}`, borderRadius: "10px", padding: "12px", color: t.text, fontSize: "14px", cursor: "pointer", textAlign: "left" }}
               >
                 🔗 Ссылки на сервисы
               </button>
-
               <button
                 onClick={clearAll}
                 style={{ background: "transparent", border: "1px solid #ef4444", borderRadius: "10px", padding: "12px", color: "#ef4444", fontSize: "14px", cursor: "pointer", textAlign: "left" }}
@@ -379,7 +370,7 @@ export default function Home() {
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: t.modalItemBg, border: `1px solid ${t.modalBorder}`, borderRadius: "10px", textDecoration: "none", cursor: "pointer" }}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: t.modalItemBg, border: `1px solid ${t.modalBorder}`, borderRadius: "10px", textDecoration: "none" }}
                 >
                   <div>
                     <div style={{ fontSize: "14px", fontWeight: "600", color: t.text }}>{link.label}</div>
@@ -398,7 +389,6 @@ export default function Home() {
 
       {/* SIDEBAR */}
       <div style={{ width: "240px", background: t.sidebar, borderRight: `1px solid ${t.sidebarBorder}`, display: "flex", flexDirection: "column", padding: "16px", gap: "8px" }}>
-
         <div style={{ position: "relative", marginBottom: "8px", paddingBottom: "12px", borderBottom: `1px solid ${t.sidebarBorder}` }} ref={menuRef}>
           <div onClick={() => setShowMenu(!showMenu)} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
             <div style={{ width: "36px", height: "36px", borderRadius: "10px", overflow: "hidden", border: `1px solid ${t.accent}`, flexShrink: 0 }}>
@@ -410,7 +400,6 @@ export default function Home() {
             </div>
             <div style={{ color: t.textDim, fontSize: "12px" }}>{showMenu ? "▲" : "▼"}</div>
           </div>
-
           {showMenu && (
             <div style={{ position: "absolute", top: "48px", left: 0, right: 0, background: t.dropdownBg, border: `1px solid ${t.dropdownBorder}`, borderRadius: "10px", overflow: "hidden", zIndex: 100 }}>
               <button
@@ -434,7 +423,6 @@ export default function Home() {
         </div>
 
         <div style={{ fontSize: "11px", color: t.textDim, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Режимы</div>
-
         {MODES.map((mode) => (
           <button
             key={mode.id}
@@ -452,7 +440,6 @@ export default function Home() {
         ))}
 
         <div style={{ fontSize: "11px", color: t.textDim, textTransform: "uppercase", letterSpacing: "1px", marginTop: "12px", marginBottom: "4px" }}>Быстрые команды</div>
-
         {QUICK_COMMANDS.map((cmd) => (
           <button
             key={cmd.label}
@@ -464,7 +451,6 @@ export default function Home() {
             {cmd.label}
           </button>
         ))}
-
         <div style={{ flex: 1 }} />
       </div>
 
