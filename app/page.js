@@ -9,6 +9,8 @@ const MODES = [
   { id: "strategy", label: "📊 Стратегия", prompt: "режим: стратегия" },
   { id: "critic", label: "🔥 Критик", prompt: "режим: критик" },
   { id: "reddit", label: "👾 Reddit", prompt: "режим: reddit" },
+  { id: "dup_competitor", label: "🔁 Дубликат конкурента", prompt: "дубликат конкурента" },
+  { id: "dup_own", label: "🔁 Дубликат своего", prompt: "дубликат своего" },
 ];
 
 const QUICK_COMMANDS = [
